@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>El Dojo · Dashboard</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 :root{
   --bg:#0c0c0c;--s1:#141414;--s2:#1c1c1c;--s3:#262626;
@@ -411,6 +412,19 @@ tr:last-child td{border-bottom:none}
 </head>
 <body>
 
+<!-- ════ LOGIN GATE ════ -->
+<div id="auth-gate" style="position:fixed;inset:0;z-index:9999;background:#0c0c0c;display:flex;align-items:center;justify-content:center">
+  <div style="width:320px;max-width:90vw;text-align:center">
+    <div style="font-size:22px;font-weight:900;letter-spacing:.1em;margin-bottom:4px"><span style="color:#e8593a">⛩</span> EL DOJO</div>
+    <div style="font-size:11px;color:#666;letter-spacing:.2em;text-transform:uppercase;margin-bottom:24px">Dashboard privado</div>
+    <input id="auth-email" type="email" placeholder="Email" autocomplete="username" style="width:100%;background:#1c1c1c;border:1px solid #222;border-radius:8px;padding:11px 12px;color:#ede9e3;font-size:14px;outline:none;margin-bottom:10px;font-family:inherit">
+    <input id="auth-pass" type="password" placeholder="Contraseña" autocomplete="current-password" style="width:100%;background:#1c1c1c;border:1px solid #222;border-radius:8px;padding:11px 12px;color:#ede9e3;font-size:14px;outline:none;margin-bottom:14px;font-family:inherit">
+    <button onclick="authLogin()" style="width:100%;background:#e8593a;color:#fff;border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-bottom:8px">Entrar</button>
+    <button onclick="authSignup()" style="background:none;border:none;color:#666;font-size:12px;cursor:pointer;font-family:inherit;text-decoration:underline">Crear cuenta (primera vez)</button>
+    <div id="auth-msg" style="font-size:12px;color:#e85d3a;margin-top:12px;min-height:16px"></div>
+  </div>
+</div>
+
 <header class="hdr">
   <div class="brand">
     <div class="b-dojo"><span class="b-icon">⛩</span> EL DOJO</div>
@@ -424,7 +438,11 @@ tr:last-child td{border-bottom:none}
     <button class="tab" onclick="switchTab('plan')">El Plan</button>
     <button class="tab" onclick="switchTab('graficas')">Gráficas</button>
   </div>
-  <div style="font-size:10px;color:var(--dim)" id="last-snap"></div>
+  <div style="display:flex;align-items:center;gap:12px">
+    <span id="sync-status" style="font-size:10px;color:var(--dim)"></span>
+    <div style="font-size:10px;color:var(--dim)" id="last-snap"></div>
+    <button id="logout-btn" onclick="authLogout()" style="display:none;background:none;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:10px;padding:4px 9px;cursor:pointer;font-family:inherit">Salir</button>
+  </div>
 </header>
 
 <main>
@@ -1245,6 +1263,7 @@ function persist(){
       console.error('persist error',e);
     }
   }
+  scheduleRemoteSave(); // sincroniza a Supabase (debounced)
 }
 // Comprime una imagen (File) y devuelve un dataURL pequeño vía callback
 function compressImage(file,maxDim,quality,cb){
@@ -3012,6 +3031,91 @@ initVis();
 renderEpCards();
 initPlan();
 render();
+
+// ═══════════════════════════
+// SUPABASE · login + sync nube
+// ═══════════════════════════
+const SUPA_URL='https://apobsffrabcayedmwdml.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFwb2JzZmZyYWJjYXllZG13ZG1sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODEzNjY1MDEsImV4cCI6MjA5Njk0MjUwMX0.QVfQ92cZ8NF7UXjnM7TLNCvNcRmaMuFoXWz9AqFBzyU';
+let sb=null, sbUser=null, remoteReady=false, saveTimer=null;
+function authMsg(t){const e=gid('auth-msg');if(e)e.textContent=t||'';}
+function hideGate(){const g=gid('auth-gate');if(g)g.style.display='none';const b=gid('logout-btn');if(b)b.style.display='inline-block';}
+function syncStatus(t){const e=gid('sync-status');if(e)e.textContent=t||'';}
+
+try{ sb = window.supabase.createClient(SUPA_URL, SUPA_KEY); }catch(e){ console.error('Supabase init',e); }
+
+async function authInit(){
+  if(!sb){ hideGate(); return; } // sin supabase → modo local
+  try{
+    const { data:{ session } } = await sb.auth.getSession();
+    if(session){ await onAuthed(session); }
+  }catch(e){ console.error(e); }
+}
+async function authLogin(){
+  if(!sb){authMsg('Supabase no cargó. Recarga la página.');return;}
+  const email=gid('auth-email').value.trim(), password=gid('auth-pass').value;
+  if(!email||!password){authMsg('Email y contraseña.');return;}
+  authMsg('Entrando…');
+  const {data,error}=await sb.auth.signInWithPassword({email,password});
+  if(error){authMsg(error.message);return;}
+  await onAuthed(data.session);
+}
+async function authSignup(){
+  if(!sb){authMsg('Supabase no cargó. Recarga la página.');return;}
+  const email=gid('auth-email').value.trim(), password=gid('auth-pass').value;
+  if(!email||!password){authMsg('Pon email y una contraseña (mín. 6).');return;}
+  authMsg('Creando cuenta…');
+  const {data,error}=await sb.auth.signUp({email,password});
+  if(error){authMsg(error.message);return;}
+  if(data.session){ await onAuthed(data.session); }
+  else { authMsg('Cuenta creada. Revisa tu email para confirmar y luego entra.'); }
+}
+async function authLogout(){
+  if(sb) await sb.auth.signOut();
+  location.reload();
+}
+async function onAuthed(session){
+  sbUser=session.user;
+  syncStatus('☁ sincronizando…');
+  try{
+    const {data,error}=await sb.from('app_state').select('data').eq('user_id',sbUser.id).maybeSingle();
+    if(error) console.error('fetch remote',error);
+    const remote = data && data.data;
+    const remoteHasData = remote && typeof remote==='object' && Object.keys(remote).length>0;
+    if(remoteHasData){
+      const remoteStr=JSON.stringify(remote);
+      const localStr=localStorage.getItem('dojo-v5');
+      if(remoteStr!==localStr){
+        // la nube manda → guardo en local y recargo para arrancar limpio con esos datos
+        localStorage.setItem('dojo-v5',remoteStr);
+        location.reload();
+        return;
+      }
+    } else {
+      // nube vacía → subo lo que tengo local
+      await saveRemoteNow();
+    }
+  }catch(e){ console.error(e); }
+  remoteReady=true;
+  hideGate();
+  syncStatus('☁ guardado');
+}
+async function saveRemoteNow(){
+  if(!sb||!sbUser) return;
+  try{
+    const {error}=await sb.from('app_state').upsert({user_id:sbUser.id,data:state,updated_at:new Date().toISOString()});
+    if(error){console.error('save remote',error);syncStatus('⚠ error nube');}
+    else syncStatus('☁ guardado');
+  }catch(e){console.error(e);}
+}
+function scheduleRemoteSave(){
+  if(!remoteReady||!sb||!sbUser) return;
+  syncStatus('☁ guardando…');
+  clearTimeout(saveTimer);
+  saveTimer=setTimeout(saveRemoteNow,1500);
+}
+
+authInit();
 </script>
 </body>
 </html>
