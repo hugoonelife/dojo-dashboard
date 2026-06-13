@@ -1,0 +1,3017 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>El Dojo · Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+:root{
+  --bg:#0c0c0c;--s1:#141414;--s2:#1c1c1c;--s3:#262626;
+  --biz:#e8593a;--biz2:rgba(232,89,58,.13);
+  --con:#00c8d4;--con2:rgba(0,200,212,.11);
+  --gold:#f0a500;--gold2:rgba(240,165,0,.13);
+  --text:#ede9e3;--muted:#666;--dim:#333;--border:#222;
+  --ok:#4caf7d;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh;font-size:14px}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--s3);border-radius:4px}
+
+/* HEADER */
+.hdr{padding:13px 28px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:rgba(12,12,12,.97);backdrop-filter:blur(12px);z-index:300}
+.brand{display:flex;align-items:center;gap:16px}
+.b-dojo{font-size:15px;font-weight:900;letter-spacing:.1em;display:flex;align-items:center;gap:7px}
+.b-icon{color:var(--biz)}
+.b-sep{width:1px;height:18px;background:var(--border)}
+.b-hugo{font-size:11px;font-weight:700;letter-spacing:.12em;color:var(--con);opacity:.7}
+.tabs{display:flex;background:var(--s1);border-radius:8px;padding:3px;gap:3px}
+.tab{padding:6px 16px;border-radius:6px;border:none;background:transparent;color:var(--muted);font-size:12px;font-weight:600;cursor:pointer;transition:.15s;font-family:inherit}
+.tab.on{background:var(--s2);color:var(--text)}
+
+/* LAYOUT */
+main{padding:20px 28px 60px;max-width:1600px;margin:0 auto}
+.panel{display:none}.panel.on{display:block}
+
+/* ── ESTRELLA POLAR DUAL PANEL ── */
+@keyframes warmFlow{
+  0%{background-position:0% 50%}
+  50%{background-position:100% 50%}
+  100%{background-position:0% 50%}
+}
+@keyframes coolFlow{
+  0%{background-position:100% 50%}
+  50%{background-position:0% 50%}
+  100%{background-position:100% 50%}
+}
+@keyframes warmGlow{
+  from{box-shadow:0 0 20px rgba(232,89,58,.1),inset 0 0 40px rgba(232,89,58,.04)}
+  to{box-shadow:0 0 40px rgba(232,89,58,.22),inset 0 0 60px rgba(232,89,58,.09)}
+}
+@keyframes coolGlow{
+  from{box-shadow:0 0 20px rgba(0,200,212,.08),inset 0 0 40px rgba(0,200,212,.03)}
+  to{box-shadow:0 0 40px rgba(0,200,212,.2),inset 0 0 60px rgba(0,200,212,.08)}
+}
+.ep-wrap{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+/* DOJO panel — animated warm gradient */
+.ep-dojo{
+  background:linear-gradient(-45deg,#0a0200,#2d0800,#0f0300,#3d1000,#1c0500,#0a0200);
+  background-size:400% 400%;
+  border:1px solid rgba(232,89,58,.3);
+  border-radius:16px;overflow:hidden;
+  animation:warmFlow 12s ease infinite,warmGlow 4s ease-in-out infinite alternate;
+}
+.ep-panel-bar{display:flex;align-items:center;justify-content:space-between;padding:11px 20px;border-bottom:1px solid rgba(255,255,255,.05)}
+.ep-panel-logo{font-size:13px;font-weight:900;letter-spacing:.1em;display:flex;align-items:center;gap:7px}
+.ep-panel-tag{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted)}
+/* hero number area */
+.ep-hero-area{padding:22px 22px 16px;border-bottom:1px solid rgba(255,255,255,.05)}
+.ep-hero-lbl{font-size:9px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
+.ep-hero-num{font-size:68px;font-weight:900;line-height:.9;letter-spacing:-.04em;color:#fff;margin-bottom:6px}
+.ep-hero-mrr{font-size:20px;font-weight:700;letter-spacing:-.01em;margin-bottom:5px}
+.ep-hero-mrr.b{color:var(--biz)}
+.ep-hero-desc{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:10px}
+/* dojo stats row */
+.ep-dojo-stats{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid rgba(255,255,255,.05)}
+.ep-ds{padding:14px 20px;border-right:1px solid rgba(255,255,255,.05)}
+.ep-ds:last-child{border-right:none}
+.ep-ds-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+.ep-ds-n{font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1;margin-bottom:3px}
+.ep-ds-n.b{color:var(--biz)}.ep-ds-n.g{color:var(--gold)}
+.ep-ds-d{font-size:10px;color:var(--muted)}
+/* image cards row */
+.ep-cards{display:grid;grid-template-columns:repeat(3,1fr)}
+.ep-card{position:relative;height:130px;overflow:hidden;cursor:pointer;border-right:1px solid rgba(255,255,255,.05)}
+.ep-card:last-child{border-right:none}
+.ep-card-bg{width:100%;height:100%;object-fit:cover;display:block;transition:transform .3s}
+.ep-card:hover .ep-card-bg{transform:scale(1.04)}
+.ep-card-empty{width:100%;height:100%;background:linear-gradient(160deg,#1a1208,#110f0d);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:var(--dim);font-size:10px}
+.ep-card-empty-icon{font-size:20px;opacity:.35}
+.ep-card-overlay{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.9) 0%,rgba(0,0,0,.05) 65%,transparent 100%);display:flex;flex-direction:column;justify-content:flex-end;padding:11px 13px}
+.ep-card-title{font-size:12px;font-weight:700;line-height:1.2;margin-bottom:2px;outline:none}
+.ep-card-title:focus{border-bottom:1px solid rgba(255,255,255,.3)}
+.ep-card-sub{font-size:9px;color:rgba(255,255,255,.5);outline:none}
+.ep-card-sub:focus{border-bottom:1px solid rgba(255,255,255,.2)}
+.ep-upload-hint{position:absolute;top:7px;right:7px;background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.12);border-radius:4px;padding:2px 7px;font-size:9px;color:rgba(255,255,255,.45);opacity:0;transition:.2s;pointer-events:none}
+.ep-card:hover .ep-upload-hint{opacity:1}
+/* vision toggles */
+.ep-vis-btn{font-size:10px;color:var(--dim);cursor:pointer;border:none;background:transparent;font-family:inherit;padding:0;text-decoration:underline;text-underline-offset:2px;margin-top:6px;display:inline-block}
+.ep-vis-btn:hover{color:var(--muted)}
+.ep-vis-box{display:none;margin-top:6px}
+.ep-vis-box.on{display:block}
+.ep-vis-box textarea{width:100%;background:rgba(255,255,255,.03);border:1px solid var(--border);border-radius:6px;padding:7px 9px;color:var(--text);font-size:11px;font-family:inherit;resize:vertical;outline:none;min-height:50px}
+.ep-vis-box textarea:focus{border-color:var(--gold)}
+/* HUGO panel — animated cool gradient */
+.ep-hugo{
+  background:linear-gradient(-45deg,#000810,#001a35,#000d20,#002a45,#001020,#000608);
+  background-size:400% 400%;
+  border:1px solid rgba(0,200,212,.2);
+  border-radius:16px;overflow:hidden;display:flex;flex-direction:column;
+  animation:coolFlow 12s ease infinite,coolGlow 4s ease-in-out infinite alternate;
+}
+.ep-hugo-body{display:grid;grid-template-columns:1fr 1fr;flex:1}
+.ep-hugo-platform{padding:22px 20px;border-right:1px solid rgba(0,200,212,.07);display:flex;flex-direction:column}
+.ep-hugo-platform:last-child{border-right:none}
+.ep-hp-badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:var(--con);margin-bottom:14px}
+.ep-hp-badge-dot{width:7px;height:7px;border-radius:50%;background:var(--con);box-shadow:0 0 8px var(--con)}
+.ep-hp-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px}
+.ep-hp-num{font-size:56px;font-weight:900;line-height:.88;letter-spacing:-.04em;color:#fff;margin-bottom:8px}
+.ep-hp-cadence{font-size:16px;font-weight:700;color:var(--con);margin-bottom:16px}
+.ep-hp-cadence span{font-weight:400;font-size:13px;color:var(--muted)}
+/* image upload area inside hugo panel */
+.ep-hp-img-area{flex:1;border-radius:10px;overflow:hidden;cursor:pointer;position:relative;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);min-height:100px;display:flex;align-items:center;justify-content:center}
+.ep-hp-img-area:hover{border-color:rgba(0,200,212,.25)}
+.ep-hp-img{width:100%;height:100%;object-fit:cover;display:block}
+.ep-hp-empty{display:flex;flex-direction:column;align-items:center;gap:5px;color:var(--dim);font-size:10px}
+.ep-hp-empty-icon{font-size:22px;opacity:.3}
+.ep-hp-img-hint{position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.65);border:1px solid rgba(0,200,212,.2);border-radius:4px;padding:2px 7px;font-size:9px;color:rgba(0,200,212,.6);opacity:0;transition:.2s;pointer-events:none}
+.ep-hp-img-area:hover .ep-hp-img-hint{opacity:1}
+
+/* ── OBJETIVO SECTION (below EP) ── */
+.obj-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+.obj-box{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:18px 22px}
+.obj-box-hd{font-size:9px;letter-spacing:.2em;text-transform:uppercase;margin-bottom:14px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.obj-box-hd.b{color:var(--biz)}.obj-box-hd.c{color:var(--con)}
+.obj-metrics{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.obj-met{position:relative}
+.obj-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px}
+/* The big target number */
+.obj-tgt-num{font-size:36px;font-weight:900;line-height:1;letter-spacing:-.03em;margin-bottom:3px}
+.obj-tgt-num.b{color:var(--biz)}.obj-tgt-num.c{color:var(--con)}
+.obj-tgt-unit{font-size:11px;color:var(--muted);margin-bottom:8px}
+/* milestone selector — subtle top-right arrow */
+.obj-ms-row{display:flex;align-items:center;gap:4px;margin-bottom:8px;justify-content:flex-end}
+.obj-ms-row select{background:transparent;border:none;color:var(--dim);font-size:10px;font-family:inherit;outline:none;cursor:pointer;padding:0;appearance:none;-webkit-appearance:none;width:12px}
+.obj-ms-arrow{font-size:10px;color:var(--dim);cursor:pointer;user-select:none}
+.obj-ms-row:hover .obj-ms-arrow{color:var(--muted)}
+.obj-add-ms{width:16px;height:16px;border:1px solid var(--dim);border-radius:3px;background:transparent;color:var(--dim);cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:.15s;margin-left:2px}
+.obj-add-ms:hover{border-color:var(--muted);color:var(--text)}
+/* hidden native select overlaid on the arrow */
+.obj-ms-select-wrap{position:relative;display:flex;align-items:center}
+.obj-ms-select-wrap select{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.obj-ms-select-wrap .obj-ms-arrow{padding:2px 4px;border-radius:3px;background:var(--s2);border:1px solid var(--border);transition:.15s}
+.obj-ms-select-wrap:hover .obj-ms-arrow{border-color:var(--muted);color:var(--text)}
+/* progress toward target */
+.obj-cur{display:flex;align-items:baseline;gap:5px;margin-bottom:4px}
+.obj-cur-n{font-size:14px;font-weight:700;color:var(--text)}
+.obj-cur-sep{font-size:11px;color:var(--muted)}
+.obj-cur-tgt{font-size:11px;color:var(--muted)}
+.bar{background:var(--s3);border-radius:3px;height:4px;overflow:hidden}
+.bar-fill{height:100%;border-radius:3px;transition:width .6s}
+.bar-fill.b{background:linear-gradient(90deg,var(--biz),var(--gold))}
+.bar-fill.c{background:linear-gradient(90deg,var(--con),#7de8f0)}
+.bar-pct{font-size:10px;color:var(--muted);text-align:right;margin-top:3px}
+/* permashift llamadas sub-metric */
+.obj-sub{margin-top:14px;padding-top:12px;border-top:1px solid var(--border)}
+.obj-sub-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}
+.obj-sub-chain{display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+.sub-pill{background:var(--s2);border-radius:6px;padding:3px 9px;font-size:11px;font-weight:700;color:var(--biz)}
+.sub-pill.need{color:var(--gold);background:var(--gold2)}
+.sub-sep{font-size:11px;color:var(--dim)}
+.obj-sub-input{display:flex;align-items:center;gap:6px;margin-top:6px}
+.obj-sub-input input{width:70px;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:12px;outline:none;font-family:inherit}
+.obj-sub-input input:focus{border-color:var(--biz)}
+.obj-sub-input span{font-size:11px;color:var(--muted)}
+.obj-sub-save{padding:4px 10px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);font-size:11px;cursor:pointer;font-family:inherit;transition:.15s}
+.obj-sub-save:hover{border-color:var(--biz);color:var(--biz)}
+
+/* SEC HEADER */
+.sec-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.sec-title{font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
+
+/* TIME SECTIONS (semana/mes) */
+.time-section{margin-bottom:18px}
+.time-col{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:start}
+
+/* FULL CARD */
+.hcard{background:var(--s1);border:1px solid var(--border);border-radius:10px;padding:13px 15px}
+.hcard.biz{border-left:2.5px solid var(--biz)}
+.hcard.con{border-left:2.5px solid var(--con)}
+.hcard.done-card{opacity:.4}
+.card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:6px;margin-bottom:8px}
+.card-badges{display:flex;gap:4px}
+.badge{font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:2px 6px;border-radius:3px;font-weight:700}
+.badge.dojo{background:var(--biz2);color:var(--biz)}
+.badge.permashift{background:var(--gold2);color:var(--gold)}
+.badge.youtube{background:rgba(255,80,80,.12);color:#ff8080}
+.badge.instagram{background:rgba(200,80,200,.12);color:#d07ed0}
+.card-btns{display:flex;gap:3px;flex-shrink:0}
+.ic{width:20px;height:20px;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;transition:.15s}
+.ic:hover{color:var(--text);border-color:var(--muted)}
+.card-title{font-size:13px;font-weight:600;margin-bottom:7px;line-height:1.3}
+.card-meta{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px}
+.mpill{font-size:9px;background:var(--s2);border-radius:20px;padding:2px 7px;color:var(--muted)}
+.task-rows{display:flex;flex-direction:column}
+.trow{display:flex;align-items:center;gap:7px;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px}
+.trow:last-child{border-bottom:none}
+.chk{width:13px;height:13px;border:1.5px solid var(--dim);border-radius:3px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:8px;transition:.15s}
+.chk.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.ttxt{flex:1;line-height:1.3;cursor:text}
+.ttxt.done{text-decoration:line-through;color:var(--muted)}
+.ttxt[contenteditable="true"]{outline:none;background:rgba(255,255,255,.04);border-radius:3px;padding:1px 3px}
+.sh-wrap{margin-top:8px;border-top:1px solid var(--border);padding-top:7px}
+.sh-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:4px}
+.sh-row{display:flex;align-items:center;gap:6px;padding:2px 0;font-size:11px;color:var(--muted)}
+.cnote{font-size:11px;color:var(--muted);line-height:1.5;margin-top:7px;border-top:1px solid var(--border);padding-top:6px}
+.card-img{margin-top:8px;border-radius:6px;overflow:hidden;max-height:120px}
+.card-img img{width:100%;object-fit:cover;display:block}
+.cbtn{margin-top:8px;width:100%;padding:5px;border:1px solid var(--border);border-radius:6px;background:transparent;color:var(--muted);font-size:11px;cursor:pointer;transition:.15s;font-family:inherit}
+.cbtn:hover{border-color:var(--ok);color:var(--ok)}
+.cbtn.ok{border-color:var(--ok);color:var(--ok);background:rgba(76,175,125,.07)}
+
+/* CAT GRID */
+.cat-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.cat-sec{}
+.cat-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid}
+.cat-hd.dojo{border-color:var(--biz)}
+.cat-hd.permashift{border-color:var(--gold)}
+.cat-hd.youtube{border-color:#ff8080}
+.cat-hd.instagram{border-color:#d07ed0}
+.cat-name{font-size:11px;font-weight:700;letter-spacing:.08em}
+.cat-name.dojo{color:var(--biz)}
+.cat-name.permashift{color:var(--gold)}
+.cat-name.youtube{color:#ff8080}
+.cat-name.instagram{color:#d07ed0}
+/* flat ordered list */
+.cat-cards{display:flex;flex-direction:column;gap:7px;min-height:30px}
+/* SMALL HITO CARD */
+.htog{background:var(--s1);border:1px solid var(--border);border-radius:8px;padding:9px 11px;cursor:grab;user-select:none;transition:box-shadow .15s,opacity .15s;position:relative}
+.htog:active{cursor:grabbing}
+.htog.biz{border-left:2px solid var(--biz)}
+.htog.con{border-left:2px solid var(--con)}
+.htog.done-card{opacity:.38}
+.htog.drag-over{box-shadow:0 -2px 0 var(--gold)}
+.htog.dragging{opacity:.3}
+.htog-drag{position:absolute;left:5px;top:50%;transform:translateY(-50%);color:var(--dim);font-size:10px;cursor:grab}
+.htog-inner{padding-left:12px}
+.htog-name{font-size:11px;font-weight:600;line-height:1.3;margin-bottom:4px}
+.htog-name.done{text-decoration:line-through;color:var(--muted)}
+.htog-meta{display:flex;gap:4px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.htog-pills{display:flex;gap:4px;flex-wrap:wrap;flex:1}
+.sm-pill{font-size:9px;color:var(--dim);background:var(--s2);border-radius:20px;padding:1px 7px}
+.sm-pill.trigger{color:var(--gold);background:var(--gold2)}
+.htog-actions{display:flex;gap:3px;flex-shrink:0}
+.htog-edit{font-size:9px;color:var(--dim);cursor:pointer;background:transparent;border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-family:inherit;transition:.15s}
+.htog-edit:hover{color:var(--muted);border-color:var(--muted)}
+.htog-ok{font-size:9px;color:var(--dim);cursor:pointer;background:transparent;border:1px solid var(--border);border-radius:4px;padding:2px 6px;font-family:inherit;transition:.15s}
+.htog-ok.done-state{color:var(--ok);border-color:var(--ok)}
+.htog-ok:hover{color:var(--ok);border-color:var(--ok)}
+
+/* ADD BUTTONS */
+.add-btn{display:flex;align-items:center;justify-content:center;gap:5px;width:100%;padding:9px;border:1.5px dashed var(--border);border-radius:8px;background:transparent;color:var(--dim);cursor:pointer;font-size:11px;font-family:inherit;transition:.15s;margin-top:6px}
+.add-btn:hover{border-color:var(--muted);color:var(--muted)}
+.add-btn-sm{width:100%;padding:5px;border:1px dashed var(--dim);border-radius:5px;background:transparent;color:var(--dim);cursor:pointer;font-size:10px;font-family:inherit;transition:.15s;margin-top:5px;display:flex;align-items:center;justify-content:center;gap:4px}
+.add-btn-sm:hover{border-color:var(--muted);color:var(--muted)}
+
+/* MÉTRICAS */
+.met-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.met-hd h2{font-size:15px;font-weight:700}
+.met-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.met-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px}
+.met-tag{font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.met-val{font-size:30px;font-weight:900;line-height:1;letter-spacing:-.03em}
+.met-val.b{color:var(--biz)}.met-val.c{color:var(--con)}
+.met-sub{font-size:10px;color:var(--muted);margin-top:3px}
+.met-link{display:inline-block;margin-top:8px;font-size:11px;color:var(--dim);cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.met-link:hover{color:var(--muted)}
+.kpi-section{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px 18px;margin-bottom:18px}
+.kpi-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.kpi-hd h3{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+.kpi-row{display:flex;align-items:center;gap:0;padding:8px 0;border-bottom:1px solid var(--border)}
+.kpi-row:last-child{border-bottom:none}
+.kpi-icon{font-size:13px;margin-right:8px;flex-shrink:0}
+.kpi-lbl{font-size:10px;font-weight:700;letter-spacing:.06em;color:var(--muted);min-width:150px;flex-shrink:0}
+.kpi-chain{display:flex;align-items:center;gap:6px;flex:1;flex-wrap:wrap}
+.kpi-pill{background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:3px 9px;display:flex;align-items:center;gap:4px}
+.kpi-n{font-size:13px;font-weight:700;color:var(--con)}
+.kpi-u{font-size:10px;color:var(--muted)}
+.kpi-arr{color:var(--dim);font-size:11px}
+.kpi-result{font-size:12px;font-weight:700;color:var(--gold);background:var(--gold2);border-radius:6px;padding:3px 10px}
+/* FUNNEL (pills tipo KPI + barritas) */
+.funnel-empty{text-align:center;color:var(--dim);font-size:12px;padding:20px}
+.funnel-bottleneck{background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.3);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px}
+.funnel-bottleneck b{color:#e85d3a}
+.funnel-flow{display:flex;align-items:flex-start;flex-wrap:wrap;gap:5px}
+.funnel-pill{background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:7px 11px;min-width:92px}
+.funnel-pill.total{background:var(--s3);border-color:var(--muted)}
+.funnel-pill.bottleneck{border-color:#e85d3a;background:rgba(232,93,58,.06)}
+.funnel-pill-top{display:flex;align-items:baseline;gap:5px;margin-bottom:6px;white-space:nowrap}
+.funnel-pill-n{font-size:16px;font-weight:800;color:var(--con);letter-spacing:-.02em}
+.funnel-pill-n.src{color:var(--biz)}
+.funnel-pill-u{font-size:10px;color:var(--muted)}
+.funnel-pill-bar{height:4px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden}
+.funnel-pill-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--con),#7de8f0);transition:width .5s}
+.funnel-pill-fill.src{background:linear-gradient(90deg,var(--biz),var(--gold))}
+.funnel-conv{display:flex;align-items:center;gap:4px;align-self:center;padding:0 1px}
+.funnel-conv b{font-size:12px;font-weight:800;color:var(--gold)}
+.funnel-conv b.bad{color:#e85d3a}
+.funnel-conv b.good{color:var(--ok)}
+.funnel-conv .ar{color:var(--dim);font-size:12px}
+.funnel-plus{font-size:15px;color:var(--dim);align-self:center;padding:0 2px}
+.hist-box{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:16px 18px}
+.hist-box h3{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:10px}
+table{width:100%;border-collapse:collapse}
+th{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;text-align:left;padding:6px 10px;border-bottom:1px solid var(--border)}
+td{padding:7px 10px;font-size:12px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+
+/* SALES CALLS */
+.calls-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px}
+.calls-stat{background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 12px}
+.calls-stat-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px}
+.calls-stat-val{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.calls-stat-val.b{color:var(--biz)}.calls-stat-val.g{color:var(--gold)}.calls-stat-val.ok{color:var(--ok)}
+.calls-table-wrap{overflow-x:auto}
+.calls-table{width:100%;border-collapse:collapse}
+.calls-table th{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;text-align:left;padding:7px 9px;border-bottom:1px solid var(--border);white-space:nowrap}
+.calls-table td{padding:8px 9px;font-size:12px;border-bottom:1px solid var(--border);vertical-align:middle}
+.calls-table tr:last-child td{border-bottom:none}
+.pill-person{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;background:var(--s3)}
+.pill-person.hugo{background:rgba(232,89,58,.15);color:var(--biz)}
+.pill-person.bianca{background:rgba(0,200,212,.15);color:var(--con)}
+.pill-status{font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px}
+.pill-status.closed{background:rgba(76,175,125,.16);color:var(--ok)}
+.pill-status.open{background:rgba(255,255,255,.06);color:var(--muted)}
+.pill-pay{font-size:10px;color:var(--muted)}
+.call-del{background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:2px 5px;border-radius:4px}
+.call-del:hover{color:#e85d3a;background:rgba(232,93,58,.1)}
+.call-info-cell{max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.calls-empty{text-align:center;color:var(--dim);font-size:12px;padding:18px}
+/* radio group in modal */
+.radio-row{display:flex;gap:8px}
+.radio-opt{flex:1;display:flex;align-items:center;justify-content:center;gap:6px;padding:8px;background:var(--s2);border:1px solid var(--border);border-radius:7px;cursor:pointer;font-size:12px;transition:.15s;user-select:none}
+.radio-opt:hover{border-color:var(--muted)}
+.radio-opt.sel{border-color:var(--biz);background:rgba(232,89,58,.08);color:var(--text)}
+.radio-opt.sel.con-sel{border-color:var(--con);background:rgba(0,200,212,.08)}
+.radio-opt.sel.ok-sel{border-color:var(--ok);background:rgba(76,175,125,.08)}
+
+/* BUTTONS */
+.btn{padding:7px 14px;border-radius:7px;border:none;cursor:pointer;font-size:12px;font-weight:600;transition:.15s;font-family:inherit}
+.btn:hover{opacity:.82}
+.btn-p{background:var(--biz);color:#fff}
+.btn-s{background:var(--s2);color:var(--text);border:1px solid var(--border)}
+.btn-del{background:none;border:none;color:#e85d3a;font-size:12px;text-decoration:underline;cursor:pointer;font-family:inherit;margin-right:auto}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.82);display:none;align-items:center;justify-content:center;z-index:600}
+.overlay.on{display:flex}
+.modal{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:22px 24px;width:500px;max-width:94vw;max-height:88vh;overflow-y:auto}
+.modal h3{font-size:15px;font-weight:700;margin-bottom:16px}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.field input,.field select,.field textarea{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:7px 10px;color:var(--text);font-size:13px;outline:none;font-family:inherit}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--biz)}
+.field textarea{resize:vertical}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.modal-foot{display:flex;align-items:center;gap:8px;margin-top:14px;border-top:1px solid var(--border);padding-top:12px}
+.mfr{margin-left:auto;display:flex;gap:8px}
+.divider{height:1px;background:var(--border);margin:10px 0}
+.modal-task-list{display:flex;flex-direction:column;gap:5px;margin-bottom:6px}
+.modal-task-row{display:flex;align-items:center;gap:7px}
+.modal-task-row input[type=checkbox]{width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:var(--ok)}
+.modal-task-row input[type=text]{flex:1;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:12px;outline:none;font-family:inherit}
+.modal-task-row input[type=text]:focus{border-color:var(--biz)}
+.del-task{width:18px;height:18px;border:none;background:transparent;color:var(--dim);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:3px}
+.del-task:hover{color:#e85d3a}
+
+/* ── VISION OVERLAY ── */
+.ep-vis-section{padding:0 20px;margin-bottom:0}
+/* Vision toggle — pure CSS, no JS click issues */
+.ep-vis-chk{display:none}
+.ep-vis-toggle-btn{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:20px;font-size:11px;color:rgba(255,255,255,.5);cursor:pointer;transition:.2s;margin:8px 0;user-select:none}
+.ep-vis-toggle-btn:hover{background:rgba(255,255,255,.1);color:rgba(255,255,255,.8)}
+.ep-vis-toggle-btn.con-style{border-color:rgba(0,200,212,.25);color:rgba(0,200,212,.5)}
+.ep-vis-toggle-btn.con-style:hover{background:rgba(0,200,212,.08);color:rgba(0,200,212,.8)}
+.ep-vision-rect{display:none;margin:0 20px 14px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden}
+.ep-vis-chk:checked~.ep-vision-rect{display:block}
+.ep-vis-chk:checked+.ep-vis-toggle-btn .ep-vis-icon::after{content:'▴'}
+.ep-vis-icon::after{content:'▾'}
+.ep-vision-rect textarea{width:100%;background:transparent;border:none;padding:14px 16px;color:rgba(255,255,255,.75);font-size:13px;font-family:inherit;resize:vertical;outline:none;min-height:90px;line-height:1.6}
+.ep-vision-rect textarea::placeholder{color:rgba(255,255,255,.2)}
+
+/* ── EL PLAN ── */
+.plan-wrap{max-width:760px;margin:0 auto;padding-top:8px}
+.plan-header{margin-bottom:24px}
+.plan-title{font-size:22px;font-weight:800;letter-spacing:-.01em;margin-bottom:4px}
+.plan-sub{font-size:12px;color:var(--muted)}
+.plan-body{background:var(--s1);border:1px solid var(--border);border-radius:14px;padding:28px 32px;min-height:500px;font-size:14px;line-height:1.75;color:var(--text);outline:none;white-space:pre-wrap}
+.plan-body:focus{border-color:var(--dim)}
+.plan-body:empty::before{content:attr(data-placeholder);color:var(--dim);pointer-events:none;white-space:pre-wrap}
+
+/* ── GRÁFICAS ── */
+.graficas-hd{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px}
+.graficas-hd h2{font-size:15px;font-weight:700}
+.graficas-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}
+.grafica-card{background:var(--s1);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
+.grafica-lbl{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:14px}
+.grafica-empty{text-align:center;padding:40px 0;font-size:12px;color:var(--dim)}
+</style>
+</head>
+<body>
+
+<header class="hdr">
+  <div class="brand">
+    <div class="b-dojo"><span class="b-icon">⛩</span> EL DOJO</div>
+    <div class="b-sep"></div>
+    <div class="b-hugo">HUGOONELIFE</div>
+  </div>
+  <div class="tabs">
+    <button class="tab on" onclick="switchTab('dashboard')">Dashboard</button>
+    <button class="tab" onclick="switchTab('metricas')">Métricas</button>
+    <button class="tab" onclick="switchTab('contabilidad')">Contabilidad</button>
+    <button class="tab" onclick="switchTab('plan')">El Plan</button>
+    <button class="tab" onclick="switchTab('graficas')">Gráficas</button>
+  </div>
+  <div style="font-size:10px;color:var(--dim)" id="last-snap"></div>
+</header>
+
+<main>
+<!-- ═══ DASHBOARD ═══ -->
+<div class="panel on" id="tab-dashboard">
+
+  <!-- ESTRELLA POLAR DUAL PANEL -->
+  <div class="ep-wrap">
+
+    <!-- LEFT: EL DOJO -->
+    <div class="ep-dojo">
+      <div class="ep-panel-bar">
+        <div class="ep-panel-logo" style="color:var(--text)"><span style="color:var(--biz)">⛩</span> EL DOJO</div>
+        <div class="ep-panel-tag">Estrella Polar · Visión</div>
+      </div>
+      <!-- Vision toggle — pure CSS checkbox -->
+      <div style="padding:8px 20px 0">
+        <input type="checkbox" class="ep-vis-chk" id="chk-dojo">
+        <label class="ep-vis-toggle-btn" for="chk-dojo"><span class="ep-vis-icon"></span> Visión El Dojo</label>
+      </div>
+      <div class="ep-vision-rect">
+        <textarea id="vt-dojo" placeholder="Escribe aquí tu visión para El Dojo..." rows="4" oninput="saveVis('dojo',this.value)"></textarea>
+      </div>
+      <!-- Hero number -->
+      <div class="ep-hero-area">
+        <div class="ep-hero-lbl">Usuarios estrella polar</div>
+        <div class="ep-hero-num">50K</div>
+        <div class="ep-hero-mrr b">€8,4M / año</div>
+        <div class="ep-hero-desc">low ticket activos · 14€/mes</div>
+      </div>
+      <!-- Stats row -->
+      <div class="ep-dojo-stats">
+        <div class="ep-ds">
+          <div class="ep-ds-lbl">MRR objetivo</div>
+          <div class="ep-ds-n g">€750K</div>
+          <div class="ep-ds-d">Dojo €700K + Permashift €50K</div>
+        </div>
+        <div class="ep-ds">
+          <div class="ep-ds-lbl">Permashift · tandas/mes</div>
+          <div class="ep-ds-n b">4</div>
+          <div class="ep-ds-d">5 plazas × 2.500€ = €50K</div>
+        </div>
+      </div>
+      <!-- Image cards -->
+      <div class="ep-cards" id="ep-cards-row"></div>
+    </div>
+
+    <!-- RIGHT: HUGOONELIFE -->
+    <div class="ep-hugo">
+      <div class="ep-panel-bar">
+        <div class="ep-panel-logo" style="color:var(--con)">◈ HUGOONELIFE</div>
+        <div class="ep-panel-tag">Estrella Polar · Contenido</div>
+      </div>
+      <!-- Vision toggle Hugo — pure CSS checkbox -->
+      <div style="padding:8px 20px 0">
+        <input type="checkbox" class="ep-vis-chk" id="chk-hugo">
+        <label class="ep-vis-toggle-btn con-style" for="chk-hugo"><span class="ep-vis-icon"></span> Visión HugoOneLife</label>
+      </div>
+      <div class="ep-vision-rect">
+        <textarea id="vt-hugo" placeholder="Escribe aquí tu visión como creador HugoOneLife..." rows="4" oninput="saveVis('hugo',this.value)" style="color:rgba(0,200,212,.75)"></textarea>
+      </div>
+      <div class="ep-hugo-body">
+        <!-- YouTube -->
+        <div class="ep-hugo-platform">
+          <div class="ep-hp-badge"><span class="ep-hp-badge-dot"></span> YouTube</div>
+          <div class="ep-hp-lbl">Suscriptores</div>
+          <div class="ep-hp-num">1M</div>
+          <div class="ep-hp-cadence">2 vídeos <span>/ semana</span></div>
+          <div class="ep-hp-img-area" onclick="triggerHugoImg('yt')">
+            <input type="file" id="hugo-file-yt" accept="image/*" style="opacity:0;position:absolute;width:0;height:0;pointer-events:none" onchange="loadHugoImg('yt',this)">
+            <div id="hugo-img-yt-wrap" style="width:100%;height:100%"></div>
+            <div class="ep-hp-img-hint">📷 Cambiar foto</div>
+          </div>
+        </div>
+        <!-- Instagram -->
+        <div class="ep-hugo-platform">
+          <div class="ep-hp-badge"><span class="ep-hp-badge-dot"></span> Instagram</div>
+          <div class="ep-hp-lbl">Seguidores</div>
+          <div class="ep-hp-num" style="font-size:40px">1–3M</div>
+          <div class="ep-hp-cadence">2 reels <span>/ semana</span></div>
+          <div class="ep-hp-img-area" onclick="triggerHugoImg('ig')">
+            <input type="file" id="hugo-file-ig" accept="image/*" style="opacity:0;position:absolute;width:0;height:0;pointer-events:none" onchange="loadHugoImg('ig',this)">
+            <div id="hugo-img-ig-wrap" style="width:100%;height:100%"></div>
+            <div class="ep-hp-img-hint">📷 Cambiar foto</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- OBJETIVO ACTUAL -->
+  <div class="obj-row">
+    <div class="obj-box">
+      <div class="obj-box-hd b">● Negocio · Objetivo Actual</div>
+      <div class="obj-metrics">
+        <!-- DOJO -->
+        <div class="obj-met" id="obj-dojo"></div>
+        <!-- PERMASHIFT -->
+        <div class="obj-met" id="obj-perma"></div>
+      </div>
+    </div>
+    <div class="obj-box">
+      <div class="obj-box-hd c">● Contenido · Objetivo Actual</div>
+      <div class="obj-metrics">
+        <!-- YOUTUBE -->
+        <div class="obj-met" id="obj-yt"></div>
+        <!-- INSTAGRAM -->
+        <div class="obj-met" id="obj-ig"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Hitos Semana -->
+  <div class="time-section">
+    <div class="sec-hd">
+      <span class="sec-title">🗓 Hitos de la Semana · <span id="semana-lbl"></span></span>
+      <button class="btn btn-s" style="font-size:11px;padding:5px 12px" onclick="openAdd('semana')">+ Añadir</button>
+    </div>
+    <div class="time-col" id="col-semana"></div>
+  </div>
+
+  <!-- Hitos Mes -->
+  <div class="time-section">
+    <div class="sec-hd">
+      <span class="sec-title">⚡ Hitos del Mes · <span id="mes-lbl"></span></span>
+      <button class="btn btn-s" style="font-size:11px;padding:5px 12px" onclick="openAdd('mes')">+ Añadir</button>
+    </div>
+    <div class="time-col" id="col-mes"></div>
+  </div>
+
+  <!-- Roadmap -->
+  <div class="sec-hd" style="margin-bottom:14px">
+    <span class="sec-title">Roadmap de Hitos</span>
+    <span style="font-size:10px;color:var(--dim)">Arrastra para reordenar · doble clic en texto para editar</span>
+  </div>
+  <div class="cat-grid" id="cat-grid"></div>
+
+</div>
+
+<!-- ═══ MÉTRICAS ═══ -->
+<div class="panel" id="tab-metricas">
+  <div class="met-hd">
+    <h2>Métricas</h2>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn btn-s" style="font-size:11px" onclick="exportData()">⬇ Exportar</button>
+      <label class="btn btn-s" style="font-size:11px;cursor:pointer">⬆ Importar<input type="file" accept=".json" style="display:none" onchange="importData(this)"></label>
+      <button class="btn btn-p" onclick="saveSnap()">Guardar snapshot</button>
+    </div>
+  </div>
+  <div class="met-grid">
+    <div class="met-card">
+      <div class="met-tag">Usuarios Dojo</div>
+      <div class="met-val b" id="mv-dojo">—</div>
+      <div class="met-sub">de pago activos</div>
+      <span class="met-link" onclick="openMetric('dojo')">Actualizar</span>
+    </div>
+    <div class="met-card">
+      <div class="met-tag">Permashift acumulado</div>
+      <div class="met-val b" id="mv-perma">—</div>
+      <div class="met-sub" id="mv-perma-sub">tandas/mes: —</div>
+      <span class="met-link" onclick="openMetric('perma')">Actualizar</span>
+    </div>
+    <div class="met-card">
+      <div class="met-tag">Llamadas agendadas/mes</div>
+      <div class="met-val b" id="mv-calls">—</div>
+      <div class="met-sub" id="mv-calls-sub">necesarias: — (para meta actual)</div>
+      <span class="met-link" onclick="openMetric('calls')">Actualizar</span>
+    </div>
+    <div class="met-card">
+      <div class="met-tag">YouTube · subs</div>
+      <div class="met-val c" id="mv-yt">—</div>
+      <div class="met-sub">→ 1.000.000</div>
+      <span class="met-link" onclick="openMetric('yt')">Actualizar</span>
+    </div>
+  </div>
+  <div class="met-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="met-card">
+      <div class="met-tag">Instagram · seg.</div>
+      <div class="met-val c" id="mv-ig">—</div>
+      <div class="met-sub">→ 1.000.000 → 3M</div>
+      <span class="met-link" onclick="openMetric('ig')">Actualizar</span>
+    </div>
+    <div class="met-card">
+      <div class="met-tag">Balance neto · €</div>
+      <div class="met-val" style="color:var(--gold)" id="mv-revenue">—</div>
+      <div class="met-sub" id="mv-revenue-sub">ingresos − gastos</div>
+      <span class="met-link" onclick="openAddRevenue()">+ Añadir movimiento</span>
+    </div>
+    <div class="met-card">
+      <div class="met-tag">Ingresos totales · €</div>
+      <div class="met-val" style="color:var(--ok)" id="mv-income">—</div>
+      <div class="met-sub" id="mv-income-sub">sin descontar gastos</div>
+      <span class="met-link" onclick="openAddRevenue()">+ Añadir ingreso</span>
+    </div>
+  </div>
+
+  <!-- Funnel de captación -->
+  <div class="kpi-section" style="margin-bottom:18px">
+    <div class="kpi-hd">
+      <h3>Funnel de captación · semanal</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span id="funnel-week-lbl" style="font-size:11px;color:var(--dim)"></span>
+        <button class="btn btn-p" style="font-size:11px;padding:5px 12px" onclick="openFunnelWeek()">+ Registrar semana</button>
+      </div>
+    </div>
+    <div id="funnel-body"></div>
+  </div>
+
+  <!-- Sales call tracking -->
+  <div class="kpi-section" style="margin-bottom:18px">
+    <div class="kpi-hd">
+      <h3>Llamadas de venta · Permashift</h3>
+      <button class="btn btn-p" style="font-size:11px;padding:5px 12px" onclick="openCallModal()">+ Añadir llamada</button>
+    </div>
+    <div class="calls-stats" id="calls-stats"></div>
+    <div class="calls-table-wrap">
+      <table class="calls-table">
+        <thead><tr>
+          <th>Fecha</th><th>Cliente</th><th>Closer</th><th>Estado</th><th>Precio</th><th>Pago</th><th>Info</th><th></th>
+        </tr></thead>
+        <tbody id="calls-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="kpi-section">
+    <div class="kpi-hd">
+      <h3>KPIs de Conversión</h3>
+      <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="openKpiModal()">Editar</button>
+    </div>
+    <div id="kpi-rows"></div>
+  </div>
+
+  <!-- Costes de entrega -->
+  <div class="kpi-section">
+    <div class="kpi-hd">
+      <h3>Costes de entrega · márgenes</h3>
+      <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="openDeliveryModal()">Editar</button>
+    </div>
+    <div id="delivery-rows"></div>
+  </div>
+
+  <div class="hist-box">
+    <h3>Historial de snapshots</h3>
+    <table>
+      <thead><tr><th>Fecha</th><th>Dojo</th><th>Permashift</th><th>Tandas/mes</th><th>Llamadas/mes</th><th>Ingresos €</th><th>YouTube</th><th>Instagram</th></tr></thead>
+      <tbody id="hist-tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══ CONTABILIDAD ═══ -->
+<div class="panel" id="tab-contabilidad">
+  <div class="met-hd">
+    <h2>Contabilidad</h2>
+    <div style="display:flex;gap:8px;align-items:center">
+      <label class="btn btn-s" style="font-size:11px;cursor:pointer">⬆ Importar movimientos<input type="file" accept=".json" style="display:none" onchange="importMovements(this)"></label>
+      <button class="btn btn-p" style="font-size:11px;padding:5px 12px" onclick="openAddRevenue()">+ Añadir movimiento</button>
+    </div>
+  </div>
+
+  <!-- Resumen arriba -->
+  <div class="met-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="met-card">
+      <div class="met-tag">Ingresos totales · €</div>
+      <div class="met-val" style="color:var(--ok)" id="cont-income">—</div>
+      <div class="met-sub">sin descontar gastos</div>
+    </div>
+    <div class="met-card">
+      <div class="met-tag">Gastos totales · €</div>
+      <div class="met-val" style="color:#e85d3a" id="cont-expense">—</div>
+      <div class="met-sub" id="cont-tools-sub">incl. herramientas/mes</div>
+    </div>
+    <div class="met-card">
+      <div class="met-tag">Balance neto · €</div>
+      <div class="met-val" style="color:var(--gold)" id="cont-net">—</div>
+      <div class="met-sub">ingresos − gastos</div>
+    </div>
+  </div>
+
+  <!-- Registro de ingresos y gastos -->
+  <div class="kpi-section" style="margin-bottom:18px">
+    <div class="kpi-hd">
+      <h3>Registro de ingresos y gastos</h3>
+      <button class="btn btn-p" style="font-size:11px;padding:5px 12px" onclick="openAddRevenue()">+ Añadir movimiento</button>
+    </div>
+    <div id="rev-totals-bar" style="margin-bottom:4px"></div>
+    <div id="rev-log-wrap" style="display:none"><div id="rev-log-rows"></div></div>
+    <button id="rev-toggle-btn" onclick="toggleRevLog()" style="width:100%;background:none;border:1px dashed var(--border);border-radius:8px;color:var(--con);cursor:pointer;font-size:12px;font-weight:600;padding:9px 0;font-family:inherit;margin-top:10px">▼ Ver registro de movimientos</button>
+  </div>
+
+  <!-- Herramientas / suscripciones -->
+  <div class="kpi-section">
+    <div class="kpi-hd">
+      <h3>Herramientas · suscripciones recurrentes</h3>
+      <button class="btn btn-p" style="font-size:11px;padding:5px 12px" onclick="openToolModal()">+ Añadir herramienta</button>
+    </div>
+    <div class="calls-table-wrap">
+      <table class="calls-table">
+        <thead><tr><th>Herramienta</th><th>Info</th><th>€/mes</th><th>Día cobro</th><th></th></tr></thead>
+        <tbody id="tools-tbody"></tbody>
+      </table>
+    </div>
+    <div id="tools-total" style="display:flex;justify-content:flex-end;padding:12px 0 0;font-size:15px;font-weight:800;border-top:1px solid var(--border);color:#e85d3a;margin-top:6px"></div>
+  </div>
+</div>
+
+<!-- ═══ EL PLAN ═══ -->
+<div class="panel" id="tab-plan">
+  <div class="plan-wrap">
+    <div class="plan-header">
+      <div class="plan-title">El Plan · El Dojo</div>
+      <div class="plan-sub">Edita directamente. Autoguardado.</div>
+    </div>
+    <div class="plan-body" id="plan-body" contenteditable="true" oninput="savePlan(this.innerHTML)"
+      data-placeholder="Escribe aquí tu plan para El Dojo...&#10;&#10;Puedes estructurarlo como quieras: fases, objetivos, estrategia, decisiones clave..."></div>
+  </div>
+</div>
+
+<!-- ═══ GRÁFICAS ═══ -->
+<div class="panel" id="tab-graficas">
+  <div class="graficas-hd">
+    <h2>Gráficas</h2>
+    <span style="font-size:11px;color:var(--dim)">Datos de snapshots guardados</span>
+  </div>
+  <div class="graficas-grid">
+    <div class="grafica-card">
+      <div class="grafica-lbl">💰 Balance neto acumulado · € (ingresos − gastos)</div>
+      <canvas id="chart-revacum"></canvas>
+    </div>
+    <div class="grafica-card">
+      <div class="grafica-lbl">📈 Ingresos acumulados · €</div>
+      <canvas id="chart-incexp"></canvas>
+    </div>
+    <div class="grafica-card">
+      <div class="grafica-lbl">Usuarios Dojo</div>
+      <canvas id="chart-dojo"></canvas>
+    </div>
+    <div class="grafica-card">
+      <div class="grafica-lbl">Permashift · acumulado clientes</div>
+      <canvas id="chart-perma"></canvas>
+    </div>
+    <div class="grafica-card">
+      <div class="grafica-lbl">YouTube · Suscriptores</div>
+      <canvas id="chart-yt"></canvas>
+    </div>
+    <div class="grafica-card">
+      <div class="grafica-lbl">Instagram · Seguidores</div>
+      <canvas id="chart-ig"></canvas>
+    </div>
+    <div class="grafica-card">
+      <div class="grafica-lbl">Llamadas agendadas por mes</div>
+      <canvas id="chart-calls"></canvas>
+    </div>
+  </div>
+</div>
+</main>
+
+<!-- ════ MODAL HITO ════ -->
+<div class="overlay" id="modal-hito">
+  <div class="modal">
+    <h3 id="mh-title">Nuevo hito</h3>
+    <input type="hidden" id="mh-id">
+    <input type="hidden" id="mh-sec">
+    <div class="two-col">
+      <div class="field">
+        <label>Categoría</label>
+        <select id="mh-cat">
+          <option value="dojo">Dojo</option><option value="permashift">Permashift</option>
+          <option value="youtube">YouTube</option><option value="instagram">Instagram</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tipo</label>
+        <select id="mh-type" onchange="onTypeChg()">
+          <option value="tasks">Lista de tareas</option>
+          <option value="toggle">Hito numérico</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>Nombre</label><input type="text" id="mh-name" placeholder="ej. Contratar setter #1"></div>
+    <div id="mh-tog-blk" style="display:none">
+      <div class="two-col">
+        <div class="field"><label>Objetivo</label><input type="number" id="mh-tgt" placeholder="1000"></div>
+        <div class="field"><label>Unidad</label><input type="text" id="mh-unit" placeholder="usuarios"></div>
+      </div>
+    </div>
+    <div id="mh-tasks-blk">
+      <div class="field">
+        <label>Tareas</label>
+        <div class="modal-task-list" id="mh-task-list"></div>
+        <button type="button" class="add-btn-sm" style="margin-top:4px" onclick="addTaskRow()">+ tarea</button>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="two-col">
+      <div class="field"><label>Cuándo</label><input type="text" id="mh-date" placeholder="06/2026 o 'cuando...'"></div>
+      <div class="field"><label>Qué se requiere</label><input type="text" id="mh-trigger" placeholder="1000 usuarios activos"></div>
+    </div>
+    <div class="field"><label>Nota</label><textarea id="mh-note" rows="2" placeholder="Info extra..."></textarea></div>
+    <div class="field"><label>Imagen</label>
+      <input type="file" id="mh-img" accept="image/*" style="font-size:11px">
+      <div id="mh-img-prev" style="display:none;margin-top:6px"><img id="mh-img-el" style="width:100%;border-radius:6px;max-height:100px;object-fit:cover"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-del" id="mh-del" style="display:none" onclick="deleteHito()">Eliminar</button>
+      <div class="mfr">
+        <button class="btn btn-s" onclick="closeHitoModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveHito()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL MÉTRICA ════ -->
+<div class="overlay" id="modal-metric">
+  <div class="modal" style="width:300px">
+    <h3 id="mm-title">Actualizar</h3>
+    <input type="hidden" id="mm-key">
+    <div class="field"><label id="mm-lbl">Valor</label><input type="number" id="mm-val"></div>
+    <div class="modal-foot"><div class="mfr">
+      <button class="btn btn-s" onclick="closeMM()">Cancelar</button>
+      <button class="btn btn-p" onclick="saveMetric()">Guardar</button>
+    </div></div>
+  </div>
+</div>
+
+<!-- ════ MODAL NUEVO MILESTONE ════ -->
+<div class="overlay" id="modal-ms">
+  <div class="modal" style="width:360px">
+    <h3 id="ms-title">Nuevo hito numérico</h3>
+    <input type="hidden" id="ms-cat">
+    <div class="field"><label>Objetivo</label><input type="number" id="ms-tgt" placeholder="5000"></div>
+    <div class="field"><label>Unidad</label><input type="text" id="ms-unit" placeholder="usuarios"></div>
+    <div class="field"><label>Fecha / cuándo</label><input type="text" id="ms-date" placeholder="03/2027"></div>
+    <div class="modal-foot"><div class="mfr">
+      <button class="btn btn-s" onclick="closeMsModal()">Cancelar</button>
+      <button class="btn btn-p" onclick="saveMilestone()">Guardar</button>
+    </div></div>
+  </div>
+</div>
+
+<!-- ════ MODAL KPIs ════ -->
+<div class="overlay" id="modal-kpi">
+  <div class="modal" style="width:540px">
+    <h3>Editar KPIs</h3>
+    <div id="kpi-edit-area"></div>
+    <div class="modal-foot"><div class="mfr">
+      <button class="btn btn-s" onclick="closeKpiModal()">Cancelar</button>
+      <button class="btn btn-p" onclick="saveKpis()">Guardar</button>
+    </div></div>
+  </div>
+</div>
+
+<!-- ════ MODAL FUNNEL SEMANA ════ -->
+<div class="overlay" id="modal-funnel">
+  <div class="modal" style="width:420px">
+    <h3 id="funnel-modal-title">Registrar semana</h3>
+    <input type="hidden" id="fn-id">
+    <div class="field"><label>Semana (fecha de inicio)</label><input type="date" id="fn-date"></div>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:10px">Mete cuántos leads <b>entraron</b> en cada stage esta semana (sácalo de GoHighLevel).</div>
+    <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Entradas + apertura por fuente</div>
+    <div class="two-col">
+      <div class="field"><label>Lead Instagram</label><input type="number" id="fn-leadIg" placeholder="0" min="0"></div>
+      <div class="field"><label>↳ Respondió (IG)</label><input type="number" id="fn-respondidoIg" placeholder="0" min="0"></div>
+    </div>
+    <div class="two-col">
+      <div class="field"><label>Lead VSL</label><input type="number" id="fn-leadVsl" placeholder="0" min="0"></div>
+      <div class="field"><label>↳ Respondió (VSL)</label><input type="number" id="fn-respondidoVsl" placeholder="0" min="0"></div>
+    </div>
+    <div class="field"><label>VSL mandada</label><input type="number" id="fn-vslEnviada" placeholder="0" min="0"></div>
+    <div class="two-col">
+      <div class="field"><label>Agendada</label><input type="number" id="fn-agendada" placeholder="0" min="0"></div>
+      <div class="field"><label>Tuvo llamada</label><input type="number" id="fn-realizada" placeholder="0" min="0"></div>
+    </div>
+    <div class="field"><label>Miembro Perma (venta)</label><input type="number" id="fn-perma" placeholder="0" min="0"></div>
+    <div class="modal-foot">
+      <button class="btn-del" id="fn-del-btn" style="display:none" onclick="deleteFunnelWeek()">Eliminar</button>
+      <div class="mfr">
+        <button class="btn btn-s" onclick="closeFunnelModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveFunnelWeek()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL HERRAMIENTA ════ -->
+<div class="overlay" id="modal-tool">
+  <div class="modal" style="width:400px">
+    <h3 id="tool-modal-title">Nueva herramienta</h3>
+    <input type="hidden" id="tool-id">
+    <div class="field"><label>Nombre</label><input type="text" id="tool-name" placeholder="ej. Manychat"></div>
+    <div class="field"><label>Info</label><input type="text" id="tool-info" placeholder="ej. automatización DMs"></div>
+    <div class="two-col">
+      <div class="field">
+        <label>Cantidad</label>
+        <div style="display:flex;gap:6px">
+          <input type="number" id="tool-amount" placeholder="0" min="0" style="flex:1">
+          <select id="tool-currency" style="width:60px;flex-shrink:0"><option value="EUR">€</option><option value="USD">$</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Día de cobro (1-31)</label><input type="number" id="tool-day" placeholder="1" min="1" max="31"></div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn-del" id="tool-del-btn" style="display:none" onclick="deleteToolFromModal()">Eliminar</button>
+      <div class="mfr">
+        <button class="btn btn-s" onclick="closeToolModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveTool()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL COSTES DE ENTREGA ════ -->
+<div class="overlay" id="modal-delivery">
+  <div class="modal" style="width:520px">
+    <h3>Editar costes de entrega</h3>
+    <div style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Permashift</div>
+    <div class="two-col">
+      <div class="field"><label>Precio cliente (€)</label><input type="number" id="dc-permaPrice"></div>
+      <div class="field"><label>Tamaño tanda (clientes)</label><input type="number" id="dc-permaTanda"></div>
+    </div>
+    <div class="field">
+      <label>Costes por cliente</label>
+      <div id="dc-perma-list"></div>
+      <button type="button" class="add-btn-sm" style="margin-top:4px" onclick="addCostRow('dc-perma-list')">+ añadir coste</button>
+    </div>
+    <div class="divider"></div>
+    <div style="font-size:10px;font-weight:700;color:var(--biz);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">El Dojo</div>
+    <div class="two-col">
+      <div class="field"><label>Precio / mes (€)</label><input type="number" id="dc-dojoPrice"></div>
+      <div class="field"><label>LTV (meses)</label><input type="number" id="dc-dojoLtv"></div>
+    </div>
+    <div class="field">
+      <label>Costes variables por cliente</label>
+      <div id="dc-dojo-list"></div>
+      <button type="button" class="add-btn-sm" style="margin-top:4px" onclick="addCostRow('dc-dojo-list')">+ añadir coste</button>
+    </div>
+    <div class="field">
+      <label>Gastos fijos / mes</label>
+      <div class="modal-task-list" id="dc-fixed-list"></div>
+      <button type="button" class="add-btn-sm" style="margin-top:4px" onclick="addFixedRow()">+ añadir gasto fijo</button>
+    </div>
+    <div class="modal-foot"><div class="mfr">
+      <button class="btn btn-s" onclick="closeDeliveryModal()">Cancelar</button>
+      <button class="btn btn-p" onclick="saveDelivery()">Guardar</button>
+    </div></div>
+  </div>
+</div>
+
+<!-- ════ MODAL REVENUE / GASTO ════ -->
+<div class="overlay" id="modal-revenue">
+  <div class="modal" style="width:380px">
+    <h3 id="rev-modal-title">Nuevo movimiento</h3>
+    <input type="hidden" id="rev-id">
+    <div class="field">
+      <label>Tipo</label>
+      <div class="radio-row" id="rev-type-row">
+        <div class="radio-opt" data-type="income" onclick="selectRevType('income')">＋ Ingreso</div>
+        <div class="radio-opt" data-type="expense" onclick="selectRevType('expense')">－ Gasto</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div class="field">
+        <label>Cantidad</label>
+        <div style="display:flex;gap:6px">
+          <input type="number" id="rev-amount" placeholder="2500" min="0" style="flex:1" oninput="updateRevConvHint()">
+          <select id="rev-currency" onchange="updateRevConvHint()" style="width:64px;flex-shrink:0">
+            <option value="EUR">€</option>
+            <option value="USD">$</option>
+          </select>
+        </div>
+        <div id="rev-conv-hint" style="font-size:10px;color:var(--dim);margin-top:3px"></div>
+      </div>
+      <div class="field"><label>Fecha</label><input type="date" id="rev-date"></div>
+    </div>
+    <div class="field" id="rev-cat-field" style="display:none">
+      <label>Categoría del gasto</label>
+      <select id="rev-cat">
+        <option value="Entrega Dojo">Entrega Dojo</option>
+        <option value="Entrega Permashift">Entrega Permashift</option>
+        <option value="Comida">Comida</option>
+        <option value="Miscellaneous">Miscellaneous</option>
+        <option value="Regalos">Regalos</option>
+        <option value="Caprichos">Caprichos</option>
+      </select>
+    </div>
+    <div class="field"><label>Concepto</label><input type="text" id="rev-note" placeholder="ej. Permashift · 1 tanda · junio"></div>
+    <div class="modal-foot">
+      <button class="btn-del" id="rev-del-btn" style="display:none" onclick="deleteRevFromModal()">Eliminar</button>
+      <div class="mfr">
+        <button class="btn btn-s" onclick="closeRevModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveRevEntry()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL LLAMADA DE VENTA ════ -->
+<div class="overlay" id="modal-call">
+  <div class="modal" style="width:440px">
+    <h3 id="call-modal-title">Nueva llamada de venta</h3>
+    <input type="hidden" id="call-id">
+    <div class="two-col">
+      <div class="field"><label>Nombre del cliente</label><input type="text" id="call-name" placeholder="ej. Juan Pérez"></div>
+      <div class="field"><label>Fecha</label><input type="date" id="call-date"></div>
+    </div>
+    <div class="field">
+      <label>Closer (quién la tuvo)</label>
+      <div class="radio-row" id="call-person-row">
+        <div class="radio-opt" data-person="Hugo" onclick="selectCallPerson('Hugo')">Hugo</div>
+        <div class="radio-opt" data-person="Bianca" onclick="selectCallPerson('Bianca')">Bianca</div>
+      </div>
+    </div>
+    <div class="field">
+      <label>¿Se cerró?</label>
+      <div class="radio-row" id="call-closed-row">
+        <div class="radio-opt" data-closed="1" onclick="selectCallClosed(true)">✓ Cerrada</div>
+        <div class="radio-opt" data-closed="0" onclick="selectCallClosed(false)">✗ No cerrada</div>
+      </div>
+    </div>
+    <div id="call-closed-fields">
+      <div class="two-col">
+        <div class="field"><label>Precio (€)</label><input type="number" id="call-price" placeholder="2500" min="0"></div>
+        <div class="field">
+          <label>Forma de pago</label>
+          <div class="radio-row" id="call-pay-row">
+            <div class="radio-opt" data-pay="contado" onclick="selectCallPay('contado')" style="font-size:11px">Al contado</div>
+            <div class="radio-opt" data-pay="plazos" onclick="selectCallPay('plazos')" style="font-size:11px">A plazos</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="field"><label>Info adicional</label><textarea id="call-info" rows="2" placeholder="Objeciones, contexto, seguimiento..."></textarea></div>
+    <div class="modal-foot">
+      <button class="btn-del" id="call-del-btn" style="display:none" onclick="deleteCallFromModal()">Eliminar</button>
+      <div class="mfr">
+        <button class="btn btn-s" onclick="closeCallModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveCall()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════
+// INITIAL DATA
+// ═══════════════════════════
+const INIT_MILESTONES = {
+  dojo:[
+    {id:'dn-100',tgt:100,unit:'usuarios',date:'07/2026',done:false},
+    {id:'dn-500',tgt:500,unit:'usuarios',date:'09/2026',done:false},
+    {id:'dn-1k',tgt:1000,unit:'usuarios',date:'11/2026',done:false},
+    {id:'dn-2k',tgt:2000,unit:'usuarios',date:'01/2027',done:false},
+    {id:'dn-4k',tgt:4000,unit:'usuarios',date:'04/2027',done:false},
+    {id:'dn-6k',tgt:6000,unit:'usuarios',date:'07/2027',done:false},
+    {id:'dn-10k',tgt:10000,unit:'usuarios',date:'12/2027',done:false},
+    {id:'dn-12k',tgt:12000,unit:'usuarios',date:'02/2028',done:false},
+    {id:'dn-15k',tgt:15000,unit:'usuarios',date:'05/2028',done:false},
+    {id:'dn-17k',tgt:17000,unit:'usuarios',date:'08/2028',done:false},
+    {id:'dn-20k',tgt:20000,unit:'usuarios',date:'12/2028',done:false},
+  ],
+  permashift:[
+    {id:'pn-1t',tgt:5,unit:'ventas/mes',label:'1 tanda/mes',date:'06/2026',done:false},
+    {id:'pn-2t',tgt:10,unit:'ventas/mes',label:'2 tandas/mes',date:'08/2026',done:false},
+    {id:'pn-3t',tgt:15,unit:'ventas/mes',label:'3 tandas/mes',date:'11/2026',done:false},
+    {id:'pn-4t',tgt:20,unit:'ventas/mes',label:'4 tandas/mes',date:'03/2027',done:false},
+  ],
+  youtube:[
+    {id:'yn-25k',tgt:25000,unit:'subs',date:'09/2026',done:false},
+    {id:'yn-50k',tgt:50000,unit:'subs',date:'12/2026',done:false},
+    {id:'yn-100k',tgt:100000,unit:'subs',date:'04/2027',done:false},
+    {id:'yn-250k',tgt:250000,unit:'subs',date:'10/2027',done:false},
+    {id:'yn-500k',tgt:500000,unit:'subs',date:'05/2028',done:false},
+    {id:'yn-1m',tgt:1000000,unit:'subs',date:'2029',done:false},
+  ],
+  instagram:[
+    {id:'in-100k',tgt:100000,unit:'seguidores',date:'08/2026',done:false},
+    {id:'in-200k',tgt:200000,unit:'seguidores',date:'11/2026',done:false},
+    {id:'in-500k',tgt:500000,unit:'seguidores',date:'04/2027',done:false},
+    {id:'in-1m',tgt:1000000,unit:'seguidores',date:'11/2027',done:false},
+    {id:'in-2m',tgt:2000000,unit:'seguidores',date:'2029',done:false},
+    {id:'in-3m',tgt:3000000,unit:'seguidores',date:'2030',done:false},
+  ],
+};
+
+const INIT_HITOS = [
+  // SEMANA / MES
+  {id:'s-lanzar',sec:'semana',cat:'dojo',order:0,done:false,type:'tasks',
+   name:'Lanzar app Dojo',tasks:[
+    {id:'t1',text:'Build en TestFlight',done:false},
+    {id:'t2',text:'Cuenta Apple Developer',done:false},
+    {id:'t3',text:'Screenshots + descripción App Store',done:false},
+    {id:'t4',text:'Submit para review',done:false},
+    {id:'t5',text:'Go live',done:false}
+   ],tgt:0,unit:'',date:'06/2026',trigger:'',note:'',image:null},
+  {id:'m-perma1',sec:'mes',cat:'permashift',order:0,done:false,type:'tasks',
+   name:'Cerrar 1ª tanda Permashift',tasks:[
+    {id:'t1',text:'Sistema de aplicación online activo',done:false},
+    {id:'t2',text:'Contratar setter #1',done:false},
+    {id:'t3',text:'7 llamadas cualificadas agendadas',done:false},
+    {id:'t4',text:'5 ventas cerradas',done:false}
+   ],tgt:0,unit:'',date:'06/2026',trigger:'',note:'',image:null},
+
+  // DOJO
+  {id:'d-ads',sec:'dojo',cat:'dojo',order:0,done:false,type:'tasks',
+   name:'Activar paid ads Dojo',tasks:[
+    {id:'t1',text:'Calcular LTV y CAC objetivo',done:false},
+    {id:'t2',text:'Crear 3-5 creatividades de test',done:false},
+    {id:'t3',text:'Lanzar con 5€/día y medir',done:false},
+    {id:'t4',text:'Escalar al conseguir ROAS positivo',done:false}
+   ],tgt:0,unit:'',date:'11/2026',trigger:'1.000 usuarios + datos de retención',note:'Con 1k usuarios tienes prueba social para optimizar CAC.',image:null},
+  {id:'d-collabs',sec:'dojo',cat:'dojo',order:1,done:false,type:'tasks',
+   name:'Collabs influencers Dojo',tasks:[
+    {id:'t1',text:'Lista de 10 influencers del nicho',done:false},
+    {id:'t2',text:'Propuesta de collab redactada',done:false},
+    {id:'t3',text:'2 primeras collabs cerradas',done:false},
+    {id:'t4',text:'5 collabs → +1.000 usuarios',done:false}
+   ],tgt:0,unit:'',date:'02/2027',trigger:'2.000 usuarios + tracción probada',note:'',image:null},
+  {id:'d-content',sec:'dojo',cat:'dojo',order:2,done:false,type:'tasks',
+   name:'Canal contenido El Dojo',tasks:[
+    {id:'t1',text:'Estrategia de contenido Dojo definida',done:false},
+    {id:'t2',text:'Equipo de contenido separado',done:false},
+    {id:'t3',text:'4 vídeos/mes publicados',done:false},
+    {id:'t4',text:'8 reels/mes publicados',done:false}
+   ],tgt:0,unit:'',date:'03/2027',trigger:'1 tanda/mes + 4 YT/mes + 8 reels/mes estables',note:'Solo empezar cuando estés estabilizado en producción personal.',image:null},
+
+  // PERMASHIFT
+  {id:'p-pipe1',sec:'permashift',cat:'permashift',order:0,done:false,type:'tasks',
+   name:'Pipeline · 15 llamadas/mes (1 tanda)',tasks:[
+    {id:'t1',text:'CTAs activos en reels, stories y YouTube',done:false},
+    {id:'t2',text:'Hugo cerrando 6 calls/semana',done:false},
+    {id:'t3',text:'~8 leads/reels + ~4 stories + ~3 YT = 15/mes',done:false}
+   ],tgt:0,unit:'',date:'06/2026',trigger:'',note:'Con cierre 35%: 15 calls → ~5 ventas = 1 tanda ✓\nTus KPIs actuales ya generan ~15 leads/mes.',image:null},
+  {id:'p-setter1',sec:'permashift',cat:'permashift',order:1,done:false,type:'tasks',
+   name:'Contratar setter #1',tasks:[
+    {id:'t1',text:'Job description redactada',done:false},
+    {id:'t2',text:'Entrevistas y selección',done:false},
+    {id:'t3',text:'Onboarding completado',done:false},
+    {id:'t4',text:'Setter generando 15+ leads/mes autónomo',done:false}
+   ],tgt:0,unit:'',date:'08/2026',trigger:'1 tanda estable 2 meses',note:'Para 2 tandas: 29 leads/mes. Setter #1 cubre el gap (50-80 DMs/día).',image:null},
+  {id:'p-closer1',sec:'permashift',cat:'permashift',order:2,done:false,type:'tasks',
+   name:'Contratar closer #1',tasks:[
+    {id:'t1',text:'Job description + proceso de entrevista',done:false},
+    {id:'t2',text:'Closer formado en el método Permashift',done:false},
+    {id:'t3',text:'Playbook de ventas documentado',done:false},
+    {id:'t4',text:'Closer cerrando 4+ calls/sem autónomo',done:false}
+   ],tgt:0,unit:'',date:'11/2026',trigger:'2 tandas estables 2 meses',note:'Para 3 tandas (43 calls/mes): Hugo 6/sem + closer 5/sem = 11/sem ✓',image:null},
+  {id:'p-setter2',sec:'permashift',cat:'permashift',order:3,done:false,type:'tasks',
+   name:'Contratar setter #2',tasks:[
+    {id:'t1',text:'Setter #1 al límite de capacity',done:false},
+    {id:'t2',text:'Setter #2 contratado y formado',done:false},
+    {id:'t3',text:'2 setters generando 45+ leads/mes combinados',done:false}
+   ],tgt:0,unit:'',date:'03/2027',trigger:'3 tandas estables 2 meses',note:'Para 4 tandas (57 calls/mes): Hugo 6 + closer 8/sem = 14/sem ✓',image:null},
+
+  // YOUTUBE
+  {id:'y-editores',sec:'youtube',cat:'youtube',order:0,done:false,type:'tasks',
+   name:'Proceso editores · equipo x3',tasks:[
+    {id:'t1',text:'Grupo con los 3 editores creado',done:false},
+    {id:'t2',text:'Plan de ramp-up definido semana a semana',done:false},
+    {id:'t3',text:'Fase co-edición con Hugo',done:false},
+    {id:'t4',text:'Fase autónoma + sistema de entrega',done:false}
+   ],tgt:0,unit:'',date:'06/2026',trigger:'',note:'',image:null},
+  {id:'y-1vsem',sec:'youtube',cat:'youtube',order:1,done:false,type:'tasks',
+   name:'Estabilizar 1 vídeo/semana',tasks:[
+    {id:'t1',text:'3 semanas consecutivas cumplidas',done:false},
+    {id:'t2',text:'Pipeline sin cuellos de botella',done:false},
+    {id:'t3',text:'Batching: grabar 2 por sesión',done:false}
+   ],tgt:0,unit:'',date:'07/2026',trigger:'Editores en fase autónoma',note:'',image:null},
+  {id:'y-2vsem',sec:'youtube',cat:'youtube',order:2,done:false,type:'tasks',
+   name:'2 vídeos/semana',tasks:[
+    {id:'t1',text:'3 meses a 1 vid/semana completados',done:false},
+    {id:'t2',text:'Equipo capaz de 2x volumen',done:false},
+    {id:'t3',text:'Batching: grabar 4 por sesión',done:false}
+   ],tgt:0,unit:'',date:'10/2026',trigger:'3 meses estables a 1/semana',note:'',image:null},
+
+  // INSTAGRAM
+  {id:'i-2rsem',sec:'instagram',cat:'instagram',order:0,done:false,type:'tasks',
+   name:'Estabilizar 2 reels/semana',tasks:[
+    {id:'t1',text:'4 semanas consecutivas con 2 reels',done:false},
+    {id:'t2',text:'Banco de 20+ ideas',done:false},
+    {id:'t3',text:'Grabación en bloques',done:false}
+   ],tgt:0,unit:'',date:'07/2026',trigger:'',note:'',image:null},
+];
+
+const INIT_KPIS=[
+  {id:'reels',icon:'🎬',label:'CTA REELS',f0:{lbl:'Conversaciones',val:200},f1:{lbl:'% Agendan',val:4},calcFn:'rate'},
+  {id:'stories',icon:'📱',label:'CTA STORIES',f0:{lbl:'Respuestas',val:50},f1:{lbl:'% Agendan',val:7},calcFn:'rate'},
+  {id:'youtube',icon:'▶️',label:'CTA YOUTUBE',f0:{lbl:'Conversaciones',val:10},f1:{lbl:'% Agendan',val:30},calcFn:'rate'},
+  {id:'cierre',icon:'🤝',label:'% CIERRE',f0:{lbl:'Llamadas cualif.',val:17},f1:{lbl:'Cierres',val:6},calcFn:'pct'},
+  {id:'visitas',icon:'👁',label:'VISITAS → LEADS',f0:{lbl:'Visitas',val:26000},f1:{lbl:'Leads',val:320},calcFn:'pct'},
+];
+
+// ═══════════════════════════
+// STATE
+// ═══════════════════════════
+function loadState(){
+  try{const s=localStorage.getItem('dojo-v5');if(s)return JSON.parse(s);}catch(e){}
+  return{
+    metrics:{dojo:0,perma:0,yt:10000,ig:88000,calls:0},
+    history:[],
+    hitos:JSON.parse(JSON.stringify(INIT_HITOS)),
+    milestones:JSON.parse(JSON.stringify(INIT_MILESTONES)),
+    kpis:JSON.parse(JSON.stringify(INIT_KPIS)),
+    activeTarget:{dojo:'dn-100',permashift:'pn-1t',youtube:'yn-25k',instagram:'in-100k'},
+    epVision:{dojo:'',perma:'',yt:'',ig:''},
+    epOpen:{dojo:false,perma:false,yt:false,ig:false}
+  };
+}
+function persist(){
+  try{
+    localStorage.setItem('dojo-v5',JSON.stringify(state));
+  }catch(e){
+    if(e.name==='QuotaExceededError'||/quota/i.test(e.message||'')){
+      alert('⚠️ Almacenamiento lleno. Las imágenes ocupan mucho espacio.\n\nUsa "Exportar" para hacer copia de seguridad, o sube imágenes más pequeñas. La última acción no se guardó.');
+    }else{
+      console.error('persist error',e);
+    }
+  }
+}
+// Comprime una imagen (File) y devuelve un dataURL pequeño vía callback
+function compressImage(file,maxDim,quality,cb){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      let{width,height}=img;
+      if(width>height&&width>maxDim){height=Math.round(height*maxDim/width);width=maxDim;}
+      else if(height>maxDim){width=Math.round(width*maxDim/height);height=maxDim;}
+      const canvas=document.createElement('canvas');
+      canvas.width=width;canvas.height=height;
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,width,height);
+      cb(canvas.toDataURL('image/jpeg',quality));
+    };
+    img.onerror=()=>cb(e.target.result);
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+let state=loadState();
+
+// ═══════════════════════════
+// UTILS
+// ═══════════════════════════
+function fmt(n){return Number(n).toLocaleString('es-ES')}
+function pct(v,t){return Math.min(100,(v/(t||1))*100)}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')}
+function gid(id){return document.getElementById(id)}
+function txt(id,v){const e=gid(id);if(e)e.textContent=v}
+function switchTab(n){
+  const tabs=['dashboard','metricas','contabilidad','plan','graficas'];
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on',tabs[i]===n));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
+  gid('tab-'+n).classList.add('on');
+  if(n==='graficas')setTimeout(renderGraficas,50);
+}
+
+// ═══════════════════════════
+// EP VISION
+// ═══════════════════════════
+function saveVis(k,v){state.epVision[k]=v;persist();}
+function initVis(){
+  // Restore textarea content
+  ['dojo','hugo'].forEach(k=>{
+    const ta=gid('vt-'+k);if(ta)ta.value=state.epVision[k]||'';
+    // Restore checkbox state
+    const chk=gid('chk-'+k);
+    if(chk)chk.checked=!!state.epOpen[k];
+    if(chk)chk.addEventListener('change',()=>{state.epOpen[k]=chk.checked;persist();});
+  });
+  renderHugoImgs();
+}
+
+// ── EP IMAGE CARDS (Dojo bottom 3) ──
+const EP_CARD_DEFAULTS=[
+  {id:'c0',title:'Eventos presenciales',sub:'3 al año · estilo Scrapworld',image:null},
+  {id:'c1',title:'12 colaboraciones / año',sub:'1/mes · Duki · Plex · Ilia Topuria',image:null},
+  {id:'c2',title:'Presencia global',sub:'España · Latam · Europa · EE.UU.',image:null},
+];
+// ── HUGO IMAGES (YT + IG) ──
+function triggerHugoImg(k){gid('hugo-file-'+k).click();}
+function loadHugoImg(k,inp){
+  const f=inp.files[0];if(!f)return;
+  compressImage(f,900,0.82,dataUrl=>{
+    if(!state.hugoImgs)state.hugoImgs={};
+    state.hugoImgs[k]=dataUrl;
+    persist();renderHugoImgs();
+  });
+}
+function renderHugoImgs(){
+  if(!state.hugoImgs)state.hugoImgs={};
+  ['yt','ig'].forEach(k=>{
+    const wrap=gid('hugo-img-'+k+'-wrap');if(!wrap)return;
+    if(state.hugoImgs[k]){
+      wrap.innerHTML=`<img class="ep-hp-img" src="${state.hugoImgs[k]}">`;
+    } else {
+      wrap.innerHTML=`<div class="ep-hp-empty"><span class="ep-hp-empty-icon">📷</span><span>Añadir imagen</span></div>`;
+    }
+  });
+}
+
+function renderEpCards(){
+  if(!state.epCards)state.epCards=JSON.parse(JSON.stringify(EP_CARD_DEFAULTS));
+  const row=gid('ep-cards-row');if(!row)return;
+  row.innerHTML='';
+  state.epCards.forEach((c,i)=>{
+    const div=document.createElement('div');div.className='ep-card';
+    // hidden file input
+    const inp=document.createElement('input');
+    inp.type='file';inp.accept='image/*';inp.id='ep-file-'+i;
+    inp.style.cssText='opacity:0;position:absolute;width:0;height:0;pointer-events:none';
+    inp.addEventListener('change',function(){
+      const f=this.files[0];if(!f)return;
+      compressImage(f,800,0.82,dataUrl=>{state.epCards[i].image=dataUrl;persist();renderEpCards();});
+    });
+    div.appendChild(inp);
+    // image or empty state
+    if(c.image){
+      const img=document.createElement('img');img.className='ep-card-bg';img.src=c.image;
+      div.appendChild(img);
+    } else {
+      const em=document.createElement('div');em.className='ep-card-empty';
+      em.innerHTML=`<span class="ep-card-empty-icon">🖼</span><span>Clic para añadir imagen</span>`;
+      div.appendChild(em);
+    }
+    // overlay with editable text
+    const ov=document.createElement('div');ov.className='ep-card-overlay';
+    const title=document.createElement('div');title.className='ep-card-title';
+    title.contentEditable='true';title.textContent=c.title;
+    title.onblur=()=>{state.epCards[i].title=title.textContent.trim();persist();};
+    title.onclick=e=>e.stopPropagation();
+    const sub=document.createElement('div');sub.className='ep-card-sub';
+    sub.contentEditable='true';sub.textContent=c.sub;
+    sub.onblur=()=>{state.epCards[i].sub=sub.textContent.trim();persist();};
+    sub.onclick=e=>e.stopPropagation();
+    ov.appendChild(title);ov.appendChild(sub);
+    div.appendChild(ov);
+    // upload hint
+    const hint=document.createElement('div');hint.className='ep-card-upload-hint';hint.textContent='📷 Cambiar imagen';
+    div.appendChild(hint);
+    // click → upload
+    div.addEventListener('click',()=>inp.click());
+    row.appendChild(div);
+  });
+}
+
+// ═══════════════════════════
+// CIERRE RATE + CALLS CALC
+// ═══════════════════════════
+function getCierreRate(){
+  const c=(state.kpis||[]).find(k=>k.id==='cierre');
+  if(!c||!c.f0.val)return 35;
+  return(c.f1.val/c.f0.val)*100;
+}
+// Ventas Permashift cerradas (fuente: registro de llamadas; fallback a métrica manual)
+function permaSalesTotal(){
+  const calls=state.salesCalls||[];
+  if(calls.length)return calls.filter(c=>c.closed).length;
+  return state.metrics.perma||0;
+}
+function getCurMetric(cat){
+  const m=state.metrics;
+  if(cat==='dojo')return m.dojo||0;
+  if(cat==='youtube')return m.yt||0;
+  if(cat==='instagram')return m.ig||0;
+  if(cat==='permashift')return permaSalesTotal();
+  return 0;
+}
+function calcTandas(){
+  const h=state.history;if(!h.length)return{tandas:0};
+  const ago=Date.now()-30*24*60*60*1000;
+  const rec=h.filter(s=>(s.ts||0)>=ago);if(!rec.length)return{tandas:0};
+  const nv=Math.max(0,(h[h.length-1].perma||0)-(rec[0].perma||0));
+  return{tandas:Math.floor(nv/5)};
+}
+function callsNeededForTandas(tandas){
+  const rate=getCierreRate();
+  return Math.ceil((tandas*5)/rate*100);
+}
+
+// ═══════════════════════════
+// RENDER
+// ═══════════════════════════
+function render(){
+  renderObjSection();
+  renderTimeLbls();
+  renderTimeSection('semana');
+  renderTimeSection('mes');
+  renderCatGrid();
+  renderMetrics();
+  renderKpis();
+  renderHistory();
+  txt('last-snap',state.history.length?'Snap: '+state.history[state.history.length-1].date:'');
+}
+
+// ── OBJETIVO SECTION ──
+function renderObjSection(){
+  renderObjMet('dojo','b','El Dojo · usuarios');
+  renderObjMet('perma','b','Permashift · ventas/mes');
+  renderObjMet('yt','c','YouTube · subs');
+  renderObjMet('ig','c','Instagram · seg.');
+}
+
+function getActiveMilestone(cat){
+  const list=state.milestones[cat]||[];
+  const id=state.activeTarget[cat];
+  return list.find(m=>m.id===id)||list[0];
+}
+
+function renderObjMet(key,bc,lbl){
+  const catMap={dojo:'dojo',perma:'permashift',yt:'youtube',ig:'instagram'};
+  const cat=catMap[key];
+  const el=gid('obj-'+key);if(!el)return;
+  const ms=state.milestones[cat]||[];
+  const active=getActiveMilestone(cat);
+  if(!active){el.innerHTML=`<div class="obj-lbl">${lbl}</div><div style="color:var(--muted);font-size:11px">Sin hitos definidos</div>`;return;}
+  const cur=getCurMetric(cat);
+  const p=pct(cur,active.tgt);
+  const opts=ms.map(m=>`<option value="${m.id}" ${m.id===active.id?'selected':''}>${m.done?'✓ ':''}${m.label||fmt(m.tgt)+' '+m.unit} · ${m.date}</option>`).join('');
+
+  let html=`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:4px">
+    <div class="obj-lbl">${lbl}</div>
+    <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-top:1px">
+      <div class="obj-ms-select-wrap" title="Cambiar objetivo">
+        <span class="obj-ms-arrow">▾</span>
+        <select onchange="setActiveTarget('${cat}',this.value)">${opts}</select>
+      </div>
+      <button class="obj-add-ms" onclick="openMsModal('${cat}')" title="Añadir hito numérico">+</button>
+    </div>
+  </div>
+    <div class="obj-tgt-num ${bc}">${active.label||fmt(active.tgt)}</div>
+    <div class="obj-tgt-unit">${active.unit}</div>
+    <div class="obj-cur">
+      <span class="obj-cur-n">${fmt(cur)}</span>
+      <span class="obj-cur-sep">/</span>
+      <span class="obj-cur-tgt">${fmt(active.tgt)} ${active.unit}</span>
+    </div>
+    <div class="bar"><div class="bar-fill ${bc}" style="width:${p}%"></div></div>
+    <div class="bar-pct">${p.toFixed(1)}%</div>`;
+
+  // Permashift: llamadas agendadas sub-metric
+  if(key==='perma'){
+    const{tandas}=calcTandas();
+    const rate=getCierreRate();
+    const needCalls=callsNeededForTandas(active.tgt/5); // active.tgt = ventas, /5 = tandas
+    const actualCalls=state.metrics.calls||0;
+    const callPct=pct(actualCalls,needCalls);
+    html+=`<div class="obj-sub">
+      <div class="obj-sub-lbl">Llamadas agendadas / mes</div>
+      <div class="obj-sub-chain">
+        <span class="sub-pill">${actualCalls} reales</span>
+        <span class="sub-sep">→</span>
+        <span class="sub-pill need">${needCalls} necesarias</span>
+        <span class="sub-sep">·</span>
+        <span style="font-size:10px;color:var(--muted)">${rate.toFixed(0)}% cierre</span>
+      </div>
+      <div class="bar"><div class="bar-fill b" style="width:${callPct}%"></div></div>
+      <div class="bar-pct">${callPct.toFixed(1)}%</div>
+      <div class="obj-sub-input">
+        <input type="number" id="calls-input" value="${actualCalls}" placeholder="0" min="0">
+        <span>llamadas este mes</span>
+        <button class="obj-sub-save" onclick="saveCallsInline()">Guardar</button>
+      </div>
+    </div>`;
+  }
+
+  el.innerHTML=html;
+}
+
+function saveCallsInline(){
+  const v=parseFloat(gid('calls-input').value)||0;
+  state.metrics.calls=v;persist();renderObjSection();renderMetrics();
+}
+function setActiveTarget(cat,id){state.activeTarget[cat]=id;persist();renderObjSection();}
+
+function renderTimeLbls(){
+  const now=new Date();
+  const months=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  txt('mes-lbl',months[now.getMonth()]+' '+now.getFullYear());
+  const s=new Date(now);s.setDate(now.getDate()-now.getDay()+1);
+  const e=new Date(s);e.setDate(s.getDate()+6);
+  const d=n=>String(n).padStart(2,'0');
+  txt('semana-lbl',`${d(s.getDate())}/${d(s.getMonth()+1)} – ${d(e.getDate())}/${d(e.getMonth()+1)}`);
+}
+
+function renderTimeSection(sec){
+  const col=gid('col-'+sec);col.innerHTML='';
+  const list=state.hitos.filter(h=>h.sec===sec);
+  if(!list.length){col.innerHTML=`<div style="font-size:12px;color:var(--dim);padding:10px;text-align:center">Sin hitos — añade uno arriba</div>`;return;}
+  list.sort((a,b)=>(a.order||0)-(b.order||0)).forEach(h=>col.appendChild(buildFullCard(h)));
+}
+
+function renderCatGrid(){
+  const grid=gid('cat-grid');grid.innerHTML='';
+  const cats=[
+    {sec:'dojo',label:'El Dojo',cls:'dojo'},
+    {sec:'permashift',label:'Permashift',cls:'permashift'},
+    {sec:'youtube',label:'YouTube',cls:'youtube'},
+    {sec:'instagram',label:'Instagram',cls:'instagram'},
+  ];
+  cats.forEach(({sec,label,cls})=>{
+    const div=document.createElement('div');div.className='cat-sec';
+    div.innerHTML=`<div class="cat-hd ${cls}">
+      <span class="cat-name ${cls}">${label}</span>
+      <button class="add-btn-sm" style="width:auto;padding:2px 9px;margin:0" onclick="openAdd('${sec}')">+</button>
+    </div>`;
+    const cards=document.createElement('div');cards.className='cat-cards';cards.id='catcards-'+sec;
+    const hitos=state.hitos.filter(h=>h.sec===sec).sort((a,b)=>(a.order||0)-(b.order||0));
+    const notDone=hitos.filter(h=>!h.done);
+    const done=hitos.filter(h=>h.done);
+    [...notDone,...done].forEach(h=>cards.appendChild(buildSmallCard(h)));
+    div.appendChild(cards);
+    div.appendChild(Object.assign(document.createElement('button'),{
+      className:'add-btn-sm',textContent:'+ hito',onclick:()=>openAdd(sec)
+    }));
+    grid.appendChild(div);
+  });
+}
+
+// ── BUILD FULL CARD ──
+function buildFullCard(h){
+  const bc=(h.cat==='youtube'||h.cat==='instagram')?'con':'biz';
+  const div=document.createElement('div');
+  div.className=`hcard ${bc}${h.done?' done-card':''}`;
+
+  // Header
+  const top=document.createElement('div');top.className='card-top';
+  const badges=document.createElement('div');badges.className='card-badges';
+  badges.innerHTML=`<span class="badge ${h.cat}">${h.cat}</span>`;
+  const editBtn=document.createElement('button');editBtn.className='ic';editBtn.textContent='✎';
+  editBtn.addEventListener('click',()=>openEdit(h.id));
+  const btns=document.createElement('div');btns.className='card-btns';btns.appendChild(editBtn);
+  top.appendChild(badges);top.appendChild(btns);div.appendChild(top);
+
+  const title=document.createElement('div');title.className='card-title';title.textContent=h.name;div.appendChild(title);
+
+  if(h.date||h.trigger){
+    const meta=document.createElement('div');meta.className='card-meta';
+    if(h.date){const p=document.createElement('span');p.className='mpill';p.textContent='📅 '+h.date;meta.appendChild(p);}
+    if(h.trigger){const p=document.createElement('span');p.className='mpill';p.textContent='⚡ '+h.trigger;meta.appendChild(p);}
+    div.appendChild(meta);
+  }
+
+  if(h.type==='tasks'){
+    const rows=document.createElement('div');rows.className='task-rows';
+    (h.tasks||[]).forEach(t=>{
+      const row=document.createElement('div');row.className='trow';
+      const chk=document.createElement('div');
+      chk.className='chk'+(t.done?' on':'');
+      chk.textContent=t.done?'✓':'';
+      chk.style.cursor='pointer';
+      chk.addEventListener('click',()=>toggleTask(h.id,t.id));
+      const txt=document.createElement('span');
+      txt.className='ttxt'+(t.done?' done':'');
+      txt.textContent=t.text;
+      txt.addEventListener('dblclick',()=>inlineEdit(h.id,t.id,txt));
+      row.appendChild(chk);row.appendChild(txt);rows.appendChild(row);
+    });
+    div.appendChild(rows);
+  }
+
+  if(h.note){const n=document.createElement('div');n.className='cnote';n.innerHTML=esc(h.note).replace(/\n/g,'<br>');div.appendChild(n);}
+  if(h.image){const wi=document.createElement('div');wi.className='card-img';const img=document.createElement('img');img.src=h.image;wi.appendChild(img);div.appendChild(wi);}
+
+  const cbtn=document.createElement('button');
+  cbtn.className='cbtn'+(h.done?' ok':'');
+  cbtn.textContent=h.done?'✓ Completado':'✓ Marcar completado';
+  cbtn.addEventListener('click',()=>toggleDone(h.id));
+  div.appendChild(cbtn);
+  return div;
+}
+
+// ── BUILD SMALL CARD (roadmap, no subtasks, compact) ──
+function buildSmallCard(h){
+  const bc=(h.cat==='youtube'||h.cat==='instagram')?'con':'biz';
+  const div=document.createElement('div');
+  div.className=`htog ${bc}${h.done?' done-card':''}`;
+  div.draggable=true;
+  div.dataset.id=h.id;div.dataset.sec=h.sec;
+  div.addEventListener('dragstart',e=>{
+    e.dataTransfer.setData('text/plain',h.id);
+    e.dataTransfer.effectAllowed='move';
+    setTimeout(()=>div.classList.add('dragging'),0);
+  });
+  div.addEventListener('dragend',()=>div.classList.remove('dragging'));
+  div.addEventListener('dragover',e=>{e.preventDefault();div.classList.add('drag-over');});
+  div.addEventListener('dragleave',()=>div.classList.remove('drag-over'));
+  div.addEventListener('drop',e=>{
+    e.preventDefault();div.classList.remove('drag-over');
+    const srcId=e.dataTransfer.getData('text/plain');
+    if(srcId&&srcId!==h.id)reorderHito(srcId,h.id,h.sec);
+  });
+
+  const drag=document.createElement('span');drag.className='htog-drag';drag.textContent='⠿';div.appendChild(drag);
+  const inner=document.createElement('div');inner.className='htog-inner';
+  const name=document.createElement('div');name.className='htog-name'+(h.done?' done':'');name.textContent=h.name;inner.appendChild(name);
+  const meta=document.createElement('div');meta.className='htog-meta';
+  const pills=document.createElement('div');pills.className='htog-pills';
+  if(h.date){const p=document.createElement('span');p.className='sm-pill';p.textContent='📅 '+h.date;pills.appendChild(p);}
+  if(h.trigger){const p=document.createElement('span');p.className='sm-pill trigger';p.textContent='⚡ '+h.trigger;pills.appendChild(p);}
+  meta.appendChild(pills);
+  const acts=document.createElement('div');acts.className='htog-actions';
+  const eb=document.createElement('button');eb.className='htog-edit';eb.textContent='editar';eb.addEventListener('click',e=>{e.stopPropagation();openEdit(h.id);});
+  const ob=document.createElement('button');ob.className='htog-ok'+(h.done?' done-state':'');ob.textContent=h.done?'✓':'○';ob.addEventListener('click',e=>{e.stopPropagation();toggleDone(h.id);});
+  acts.appendChild(eb);acts.appendChild(ob);meta.appendChild(acts);inner.appendChild(meta);div.appendChild(inner);
+  return div;
+}
+
+// ═══════════════════════════
+// DRAG TO REORDER
+// ═══════════════════════════
+function reorderHito(srcId,tgtId,sec){
+  const list=state.hitos.filter(h=>h.sec===sec).sort((a,b)=>(a.order||0)-(b.order||0));
+  const srcIdx=list.findIndex(h=>h.id===srcId);
+  const tgtIdx=list.findIndex(h=>h.id===tgtId);
+  if(srcIdx<0||tgtIdx<0)return;
+  const [moved]=list.splice(srcIdx,1);
+  list.splice(tgtIdx,0,moved);
+  list.forEach((h,i)=>h.order=i);
+  persist();renderCatGrid();
+}
+
+// ═══════════════════════════
+// TOGGLES + INLINE EDIT
+// ═══════════════════════════
+function toggleDone(id){const h=state.hitos.find(x=>x.id===id);if(h){h.done=!h.done;persist();render();}}
+function toggleTask(hId,tId){
+  const h=state.hitos.find(x=>x.id===hId);if(!h)return;
+  const t=(h.tasks||[]).find(x=>x.id===tId);
+  if(t){t.done=!t.done;persist();render();}
+}
+function inlineEdit(hId,tId,el){
+  el.contentEditable='true';el.focus();
+  const sel=window.getSelection(),r=document.createRange();r.selectNodeContents(el);sel.removeAllRanges();sel.addRange(r);
+  el.onblur=()=>{
+    el.contentEditable='false';
+    const v=el.textContent.trim();
+    const h=state.hitos.find(x=>x.id===hId);if(!h)return;
+    const t=(h.tasks||[]).find(x=>x.id===tId);
+    if(t){if(v)t.text=v;else h.tasks=h.tasks.filter(x=>x.id!==tId);persist();render();}
+  };
+  el.onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();el.blur();}};
+}
+
+// ═══════════════════════════
+// HITO CRUD
+// ═══════════════════════════
+let editId=null,pendingImg=null;
+function openAdd(sec){
+  editId=null;pendingImg=null;
+  gid('mh-title').textContent='Nuevo hito';gid('mh-id').value='';gid('mh-sec').value=sec;
+  gid('mh-cat').value=sec==='youtube'?'youtube':sec==='instagram'?'instagram':sec==='permashift'?'permashift':'dojo';
+  gid('mh-name').value='';gid('mh-type').value='tasks';
+  gid('mh-tgt').value='';gid('mh-unit').value='';
+  gid('mh-date').value='';gid('mh-trigger').value='';
+  gid('mh-note').value='';gid('mh-img').value='';gid('mh-img-prev').style.display='none';
+  gid('mh-del').style.display='none';
+  renderModalTasks([]);onTypeChg();gid('modal-hito').classList.add('on');
+}
+function openEdit(id){
+  const h=state.hitos.find(x=>x.id===id);if(!h)return;
+  editId=id;pendingImg=h.image||null;
+  gid('mh-title').textContent='Editar hito';gid('mh-id').value=id;gid('mh-sec').value=h.sec;
+  gid('mh-cat').value=h.cat;gid('mh-name').value=h.name;gid('mh-type').value=h.type;
+  gid('mh-tgt').value=h.tgt||'';gid('mh-unit').value=h.unit||'';
+  gid('mh-date').value=h.date||'';gid('mh-trigger').value=h.trigger||'';
+  gid('mh-note').value=h.note||'';gid('mh-img').value='';
+  if(h.image){gid('mh-img-prev').style.display='block';gid('mh-img-el').src=h.image;}
+  else gid('mh-img-prev').style.display='none';
+  gid('mh-del').style.display='inline';
+  renderModalTasks(h.tasks||[]);onTypeChg();gid('modal-hito').classList.add('on');
+}
+function onTypeChg(){
+  const t=gid('mh-type').value;
+  gid('mh-tog-blk').style.display=t==='toggle'?'block':'none';
+  gid('mh-tasks-blk').style.display=t==='tasks'?'block':'none';
+}
+function renderModalTasks(tasks){
+  const list=gid('mh-task-list');list.innerHTML='';
+  (tasks||[]).forEach(t=>appendTaskRow(list,t.text,t.done));
+}
+function appendTaskRow(list,text,done){
+  const row=document.createElement('div');row.className='modal-task-row';
+  row.innerHTML=`<input type="checkbox" ${done?'checked':''}><input type="text" value="${esc(text)}" placeholder="Tarea..."><button type="button" class="del-task" onclick="this.closest('.modal-task-row').remove()">✕</button>`;
+  list.appendChild(row);return row;
+}
+function addTaskRow(){const row=appendTaskRow(gid('mh-task-list'),'',false);row.querySelector('input[type=text]').focus();}
+function getTasksFromModal(){
+  return Array.from(gid('mh-task-list').querySelectorAll('.modal-task-row')).map((r,i)=>({
+    id:'t'+Date.now()+i,
+    text:r.querySelector('input[type=text]').value.trim(),
+    done:r.querySelector('input[type=checkbox]').checked
+  })).filter(t=>t.text);
+}
+gid('mh-img').addEventListener('change',function(){
+  const f=this.files[0];if(!f)return;
+  compressImage(f,800,0.82,dataUrl=>{pendingImg=dataUrl;gid('mh-img-prev').style.display='block';gid('mh-img-el').src=pendingImg;});
+});
+function saveHito(){
+  const name=gid('mh-name').value.trim();if(!name){alert('El nombre es obligatorio.');return;}
+  const cat=gid('mh-cat').value;
+  const sec=gid('mh-sec').value;
+  const existing=editId?state.hitos.find(x=>x.id===editId):null;
+  const maxOrder=Math.max(-1,...state.hitos.filter(h=>h.sec===sec).map(h=>h.order||0));
+  const h={
+    id:editId||String(Date.now()),sec,cat,
+    order:existing?existing.order:maxOrder+1,
+    done:existing?existing.done:false,
+    type:gid('mh-type').value,name,
+    tgt:parseFloat(gid('mh-tgt').value)||0,
+    unit:gid('mh-unit').value.trim(),
+    tasks:getTasksFromModal(),
+    date:gid('mh-date').value.trim(),
+    trigger:gid('mh-trigger').value.trim(),
+    note:gid('mh-note').value.trim(),
+    image:pendingImg
+  };
+  if(editId){const i=state.hitos.findIndex(x=>x.id===editId);if(i>=0)state.hitos[i]=h;}
+  else state.hitos.push(h);
+  persist();render();closeHitoModal();
+}
+function deleteHito(){
+  if(!editId||!confirm('¿Eliminar?'))return;
+  state.hitos=state.hitos.filter(h=>h.id!==editId);
+  persist();render();closeHitoModal();
+}
+function closeHitoModal(){gid('modal-hito').classList.remove('on');}
+
+// ═══════════════════════════
+// MILESTONE CRUD
+// ═══════════════════════════
+function openMsModal(cat){
+  gid('ms-cat').value=cat;gid('ms-tgt').value='';gid('ms-unit').value='';gid('ms-date').value='';
+  gid('ms-title').textContent='Nuevo hito numérico · '+cat;
+  gid('modal-ms').classList.add('on');setTimeout(()=>gid('ms-tgt').focus(),50);
+}
+function saveMilestone(){
+  const cat=gid('ms-cat').value;
+  const tgt=parseFloat(gid('ms-tgt').value);if(!tgt){alert('Introduce un objetivo.');return;}
+  const unit=gid('ms-unit').value.trim();
+  const date=gid('ms-date').value.trim();
+  const id='custom-'+Date.now();
+  if(!state.milestones[cat])state.milestones[cat]=[];
+  state.milestones[cat].push({id,tgt,unit,date,done:false});
+  state.milestones[cat].sort((a,b)=>a.tgt-b.tgt);
+  persist();renderObjSection();closeMsModal();
+}
+function closeMsModal(){gid('modal-ms').classList.remove('on');}
+
+// ═══════════════════════════
+// METRICS
+// ═══════════════════════════
+const mLbls={dojo:'Usuarios Dojo',perma:'Permashift acumulado',yt:'YouTube subs',ig:'Instagram seguidores',calls:'Llamadas agendadas/mes',revenue:'Ingresos del mes (€)'};
+function openMetric(k){
+  gid('mm-key').value=k;gid('mm-title').textContent='Actualizar · '+mLbls[k];
+  gid('mm-lbl').textContent=mLbls[k];gid('mm-val').value=state.metrics[k]||'';
+  gid('modal-metric').classList.add('on');setTimeout(()=>gid('mm-val').focus(),50);
+}
+function saveMetric(){
+  const k=gid('mm-key').value,v=parseFloat(gid('mm-val').value);
+  if(!isNaN(v))state.metrics[k]=v;
+  persist();render();closeMM();
+}
+function closeMM(){gid('modal-metric').classList.remove('on');}
+function saveSnap(){
+  const{tandas}=calcTandas();const m=state.metrics;
+  state.history.push({ts:Date.now(),date:new Date().toLocaleDateString('es-ES'),
+    dojo:m.dojo,perma:m.perma,yt:m.yt,ig:m.ig,calls:m.calls||0,revenue:m.revenue||null,tandas});
+  persist();render();
+  const b=document.querySelector('#tab-metricas .btn-p');
+  if(b){b.textContent='✓ Guardado';setTimeout(()=>b.textContent='Guardar snapshot',1500);}
+}
+function exportData(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='eldojo-dashboard-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();URL.revokeObjectURL(a.href);
+}
+function importData(inp){
+  const f=inp.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=e=>{
+    try{
+      const imported=JSON.parse(e.target.result);
+      Object.assign(state,imported);
+      persist();location.reload();
+    }catch(err){alert('Archivo inválido.');}
+  };
+  r.readAsText(f);
+}
+function renderMetrics(){
+  const m=state.metrics;const{tandas}=calcTandas();
+  const f=v=>v!=null?fmt(v):'—';
+  const permaVentas=permaSalesTotal();
+  txt('mv-dojo',f(m.dojo));txt('mv-perma',f(permaVentas));
+  txt('mv-perma-sub','ventas cerradas · '+Math.floor(permaVentas/5)+' tandas');
+  const active=getActiveMilestone('permashift');
+  const need=active?callsNeededForTandas(active.tgt/5):0;
+  txt('mv-calls',f(m.calls));txt('mv-calls-sub','necesarias: '+need+' (para '+((active&&active.label)||'meta actual')+')');
+  txt('mv-yt',f(m.yt));txt('mv-ig',f(m.ig));
+  const inc=calcIncomeTotal(),exp=calcExpenseTotal(),net=inc-exp;
+  const rv=gid('mv-revenue');if(rv)rv.textContent='€'+fmt(net);
+  const rvsub=gid('mv-revenue-sub');if(rvsub)rvsub.textContent='+€'+fmt(inc)+' · −€'+fmt(exp);
+  const iv=gid('mv-income');if(iv)iv.textContent='€'+fmt(inc);
+  const ivsub=gid('mv-income-sub');if(ivsub)ivsub.textContent='gastos: €'+fmt(exp);
+  renderDelivery();
+  renderFunnel();
+  renderRevLog();
+  renderSalesCalls();
+  renderTools();
+  renderContabilidad();
+}
+
+// ═══════════════════════════
+// MOVIMIENTOS (INGRESOS / GASTOS)
+// ═══════════════════════════
+function entryIsExpense(e){return e.type==='expense';}
+function calcIncomeTotal(){return(state.revenueLog||[]).filter(e=>!entryIsExpense(e)).reduce((s,e)=>s+(e.amount||0),0);}
+function calcExpenseTotal(){return(state.revenueLog||[]).filter(entryIsExpense).reduce((s,e)=>s+(e.amount||0),0);}
+function calcRevTotal(){return calcIncomeTotal();} // compat
+let revDraftType='income';
+function selectRevType(t){
+  revDraftType=t;
+  document.querySelectorAll('#rev-type-row .radio-opt').forEach(o=>{
+    const on=o.dataset.type===t;
+    o.classList.toggle('sel',on);
+    o.classList.toggle('ok-sel',on&&t==='income');
+  });
+  gid('rev-cat-field').style.display=t==='expense'?'block':'none';
+}
+// Tasa USD→EUR (editable). Si cambia, solo afecta a conversiones nuevas.
+function getUsdEur(){return state.usdEur||0.93;}
+function updateRevConvHint(){
+  const cur=gid('rev-currency').value;
+  const amt=parseFloat(gid('rev-amount').value)||0;
+  const hint=gid('rev-conv-hint');
+  if(cur==='USD'&&amt>0){
+    hint.textContent='≈ €'+fmt((amt*getUsdEur()).toFixed(2))+'  (1 USD = '+getUsdEur()+' €)';
+  }else{hint.textContent='';}
+}
+function openAddRevenue(id){
+  gid('rev-id').value='';
+  gid('rev-amount').value='';
+  gid('rev-note').value='';
+  gid('rev-date').value=todayISO();
+  gid('rev-cat').value='Entrega Dojo';
+  gid('rev-currency').value='EUR';
+  gid('rev-del-btn').style.display='none';
+  gid('rev-modal-title').textContent='Nuevo movimiento';
+  selectRevType('income');
+  if(id){
+    const e=(state.revenueLog||[]).find(x=>x.id===id);
+    if(e){
+      gid('rev-id').value=e.id;
+      // mostrar en su moneda original si existe
+      gid('rev-currency').value=e.currency||'EUR';
+      gid('rev-amount').value=(e.currency==='USD'&&e.origAmount)?e.origAmount:(e.amount||'');
+      gid('rev-date').value=e.dateISO||todayISO();
+      gid('rev-note').value=e.note||'';
+      if(e.category)gid('rev-cat').value=e.category;
+      gid('rev-del-btn').style.display='inline';
+      gid('rev-modal-title').textContent='Editar movimiento';
+      selectRevType(entryIsExpense(e)?'expense':'income');
+    }
+  }
+  updateRevConvHint();
+  gid('modal-revenue').classList.add('on');
+  setTimeout(()=>gid('rev-amount').focus(),50);
+}
+function closeRevModal(){gid('modal-revenue').classList.remove('on');}
+function saveRevEntry(){
+  const raw=parseFloat(gid('rev-amount').value)||0;
+  if(!raw){alert('Introduce una cantidad.');return;}
+  if(!state.revenueLog)state.revenueLog=[];
+  const currency=gid('rev-currency').value;
+  // amount SIEMPRE en EUR
+  const amount=currency==='USD'?Math.round(raw*getUsdEur()*100)/100:raw;
+  const dateISO=gid('rev-date').value||todayISO();
+  const data={
+    type:revDraftType,
+    amount,                       // EUR
+    currency,                     // moneda introducida
+    origAmount:raw,               // cantidad original tal cual se metió
+    dateISO,date:isoToDisplay(dateISO),ts:new Date(dateISO).getTime(),
+    note:gid('rev-note').value.trim(),
+    category:revDraftType==='expense'?gid('rev-cat').value:''
+  };
+  const id=gid('rev-id').value;
+  if(id){
+    const e=state.revenueLog.find(x=>x.id===id);
+    if(e)Object.assign(e,data);
+  }else{
+    state.revenueLog.push({id:Date.now().toString(),...data});
+  }
+  state.metrics.revenue=calcIncomeTotal();
+  persist();render();closeRevModal();
+}
+function deleteRevFromModal(){
+  const id=gid('rev-id').value;
+  if(id){
+    if(!confirm('¿Eliminar este movimiento?'))return;
+    state.revenueLog=(state.revenueLog||[]).filter(x=>x.id!==id);
+    state.metrics.revenue=calcIncomeTotal();
+    persist();render();
+  }
+  closeRevModal();
+}
+// Importa una lista de movimientos (JSON) y los AÑADE sin borrar los existentes
+function importMovements(inp){
+  const f=inp.files[0];if(!f)return;
+  const r=new FileReader();
+  r.onload=ev=>{
+    try{
+      let arr=JSON.parse(ev.target.result);
+      if(!Array.isArray(arr)&&Array.isArray(arr.movements))arr=arr.movements;
+      if(!Array.isArray(arr))throw 0;
+      if(!state.revenueLog)state.revenueLog=[];
+      let n=0;
+      arr.forEach((m,i)=>{
+        const dateISO=m.dateISO||todayISO();
+        const currency=m.currency||'EUR';
+        const raw=parseFloat(m.amount)||0;
+        const amount=currency==='USD'?Math.round(raw*getUsdEur()*100)/100:raw;
+        state.revenueLog.push({
+          id:'imp'+Date.now()+'_'+i,
+          type:m.type==='expense'?'expense':'income',
+          amount,currency,origAmount:raw,
+          dateISO,date:isoToDisplay(dateISO),ts:new Date(dateISO).getTime(),
+          note:m.note||'',category:m.category||''
+        });
+        n++;
+      });
+      state.metrics.revenue=calcIncomeTotal();
+      persist();render();
+      alert('✓ '+n+' movimientos importados.');
+    }catch(e){alert('Archivo inválido. Debe ser un JSON con una lista de movimientos.');}
+  };
+  r.readAsText(f);
+  inp.value='';
+}
+let revLogExpanded=false;
+function buildRevRow(e){
+  const isExp=entryIsExpense(e);
+  const row=document.createElement('div');
+  row.style.cssText='display:flex;align-items:center;gap:0;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer';
+  const date=document.createElement('span');date.style.cssText='color:var(--muted);font-size:11px;min-width:78px';date.textContent=e.date;
+  const note=document.createElement('span');note.style.cssText='flex:1;padding:0 12px;color:var(--text);font-size:13px';
+  note.textContent=e.note||(isExp?(e.category||'Gasto'):'Ingreso');
+  if(isExp&&e.category){
+    const tag=document.createElement('span');
+    tag.style.cssText='font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--s3);border-radius:20px;padding:1px 8px;margin-right:8px;flex-shrink:0';
+    tag.textContent=e.category;
+    note.prepend(tag);
+  }
+  const amt=document.createElement('span');
+  amt.style.cssText='font-weight:700;font-size:13px;min-width:80px;text-align:right;color:'+(isExp?'#e85d3a':'var(--ok)');
+  amt.textContent=(isExp?'−€':'+€')+fmt(e.amount);
+  if(e.currency==='USD'&&e.origAmount){amt.title='Original: $'+e.origAmount;amt.textContent+=' *';}
+  const del=document.createElement('button');
+  del.style.cssText='margin-left:10px;background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:2px 4px';
+  del.textContent='✕';del.title='Eliminar';
+  del.addEventListener('click',ev=>{
+    ev.stopPropagation();
+    if(!confirm('¿Eliminar este movimiento?'))return;
+    state.revenueLog=(state.revenueLog||[]).filter(x=>x.id!==e.id);
+    state.metrics.revenue=calcIncomeTotal();
+    persist();render();
+  });
+  row.addEventListener('click',()=>openAddRevenue(e.id));
+  row.appendChild(date);row.appendChild(note);row.appendChild(amt);row.appendChild(del);
+  return row;
+}
+function renderRevLog(){
+  const wrap=gid('rev-log-rows');if(!wrap)return;
+  wrap.innerHTML='';
+  const log=state.revenueLog||[];
+  if(!log.length){
+    const empty=document.createElement('div');
+    empty.style.cssText='font-size:12px;color:var(--dim);padding:10px 0;text-align:center';
+    empty.textContent='Sin movimientos aún — añade ingresos o gastos';
+    wrap.appendChild(empty);return;
+  }
+  const sorted=[...log].sort((a,b)=>(b.ts||0)-(a.ts||0));
+  const LIMIT=20;
+  const shown=revLogExpanded?sorted:sorted.slice(0,LIMIT);
+  shown.forEach(e=>wrap.appendChild(buildRevRow(e)));
+  if(sorted.length>LIMIT){
+    const more=document.createElement('button');
+    more.style.cssText='width:100%;background:none;border:none;color:var(--con);cursor:pointer;font-size:12px;font-weight:600;padding:10px 0;font-family:inherit;text-align:center';
+    more.textContent=revLogExpanded?'▲ Mostrar menos':`▼ Ver ${sorted.length-LIMIT} movimientos más`;
+    more.addEventListener('click',()=>{revLogExpanded=!revLogExpanded;renderRevLog();});
+    wrap.appendChild(more);
+  }
+  // Totales siempre visibles (fuera del colapsable)
+  const bar=gid('rev-totals-bar');
+  if(bar){
+    const inc=calcIncomeTotal(),exp=calcExpenseTotal(),net=inc-exp;
+    bar.style.cssText='display:flex;justify-content:flex-end;gap:18px;padding:4px 0 0;font-size:13px;font-weight:700';
+    bar.innerHTML=`<span style="color:var(--ok)">Ingresos: €${fmt(inc)}</span>
+      <span style="color:#e85d3a">Gastos: €${fmt(exp)}</span>
+      <span style="color:var(--gold);font-size:15px;font-weight:800">Neto: €${fmt(net)}</span>`;
+  }
+}
+let revLogSectionOpen=false;
+function toggleRevLog(){
+  revLogSectionOpen=!revLogSectionOpen;
+  const wrap=gid('rev-log-wrap');const btn=gid('rev-toggle-btn');
+  if(wrap)wrap.style.display=revLogSectionOpen?'block':'none';
+  if(btn)btn.textContent=revLogSectionOpen?'▲ Ocultar registro de movimientos':'▼ Ver registro de movimientos';
+}
+
+// ═══════════════════════════
+// HERRAMIENTAS (suscripciones)
+// ═══════════════════════════
+function toolMonthlyEur(t){return t.currency==='USD'?(t.amount||0)*getUsdEur():(t.amount||0);}
+function toolsTotal(){return(state.tools||[]).reduce((s,t)=>s+toolMonthlyEur(t),0);}
+function openToolModal(id){
+  gid('tool-id').value='';gid('tool-name').value='';gid('tool-info').value='';
+  gid('tool-amount').value='';gid('tool-currency').value='EUR';gid('tool-day').value='';
+  gid('tool-del-btn').style.display='none';
+  gid('tool-modal-title').textContent='Nueva herramienta';
+  if(id){
+    const t=(state.tools||[]).find(x=>x.id===id);
+    if(t){
+      gid('tool-id').value=t.id;gid('tool-name').value=t.name||'';gid('tool-info').value=t.info||'';
+      gid('tool-amount').value=t.amount||'';gid('tool-currency').value=t.currency||'EUR';gid('tool-day').value=t.day||'';
+      gid('tool-del-btn').style.display='inline';
+      gid('tool-modal-title').textContent='Editar herramienta';
+    }
+  }
+  gid('modal-tool').classList.add('on');
+}
+function closeToolModal(){gid('modal-tool').classList.remove('on');}
+function saveTool(){
+  const name=gid('tool-name').value.trim();
+  if(!name){alert('Pon el nombre.');return;}
+  if(!state.tools)state.tools=[];
+  const data={
+    name,info:gid('tool-info').value.trim(),
+    amount:parseFloat(gid('tool-amount').value)||0,
+    currency:gid('tool-currency').value,
+    day:parseInt(gid('tool-day').value)||null
+  };
+  const id=gid('tool-id').value;
+  if(id){const t=state.tools.find(x=>x.id===id);if(t)Object.assign(t,data);}
+  else state.tools.push({id:Date.now().toString(),...data});
+  persist();renderTools();renderContabilidad();closeToolModal();
+}
+function deleteToolFromModal(){
+  const id=gid('tool-id').value;
+  if(id&&confirm('¿Eliminar esta herramienta?')){
+    state.tools=(state.tools||[]).filter(x=>x.id!==id);
+    persist();renderTools();renderContabilidad();
+  }
+  closeToolModal();
+}
+function renderTools(){
+  const tb=gid('tools-tbody');if(!tb)return;
+  tb.innerHTML='';
+  const tools=[...(state.tools||[])].sort((a,b)=>(a.day||99)-(b.day||99));
+  if(!tools.length){
+    tb.innerHTML='<tr><td colspan="5" class="calls-empty">Sin herramientas — añade tus suscripciones</td></tr>';
+  }else{
+    tools.forEach(t=>{
+      const tr=document.createElement('tr');tr.style.cursor='pointer';
+      const eur=toolMonthlyEur(t);
+      const usdTag=t.currency==='USD'?` <span style="font-size:9px;color:var(--dim)">($${t.amount})</span>`:'';
+      tr.innerHTML=`
+        <td style="font-weight:600">${esc(t.name)}</td>
+        <td style="color:var(--muted)">${esc(t.info)||'—'}</td>
+        <td style="color:#e85d3a;font-weight:700">€${fmt(eur.toFixed(2))}${usdTag}</td>
+        <td>${t.day?('día '+t.day):'—'}</td>
+        <td></td>`;
+      tr.addEventListener('click',e=>{if(e.target.closest('.tool-del'))return;openToolModal(t.id);});
+      const del=document.createElement('button');del.className='tool-del call-del';del.textContent='✕';del.title='Eliminar';
+      del.addEventListener('click',e=>{e.stopPropagation();
+        if(!confirm('¿Eliminar esta herramienta?'))return;
+        state.tools=(state.tools||[]).filter(x=>x.id!==t.id);persist();renderTools();renderContabilidad();
+      });
+      tr.lastElementChild.appendChild(del);
+      tb.appendChild(tr);
+    });
+  }
+  const tot=gid('tools-total');
+  if(tot)tot.textContent='Total herramientas: €'+fmt(toolsTotal().toFixed(2))+' / mes';
+}
+function renderContabilidad(){
+  const inc=calcIncomeTotal(), exp=calcExpenseTotal(), tools=toolsTotal();
+  const expTotal=exp+tools;
+  const i=gid('cont-income');if(i)i.textContent='€'+fmt(inc);
+  const e=gid('cont-expense');if(e)e.textContent='€'+fmt(expTotal.toFixed(2));
+  const ts=gid('cont-tools-sub');if(ts)ts.textContent='movimientos €'+fmt(exp)+' + herramientas €'+fmt(tools.toFixed(0))+'/mes';
+  const n=gid('cont-net');if(n)n.textContent='€'+fmt((inc-expTotal).toFixed(2));
+}
+
+// ═══════════════════════════
+// LLAMADAS DE VENTA
+// ═══════════════════════════
+let callDraft={person:'',closed:null,pay:'contado'};
+
+function todayISO(){
+  const d=new Date();
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function isoToDisplay(iso){
+  if(!iso)return '';
+  const p=iso.split('-');
+  if(p.length!==3)return iso;
+  return parseInt(p[2])+'/'+parseInt(p[1])+'/'+p[0];
+}
+function openCallModal(id){
+  callDraft={person:'',closed:null,pay:'contado'};
+  gid('call-id').value='';
+  gid('call-name').value='';
+  gid('call-price').value='';
+  gid('call-info').value='';
+  gid('call-date').value=todayISO();
+  gid('call-del-btn').style.display='none';
+  gid('call-modal-title').textContent='Nueva llamada de venta';
+  if(id){
+    const c=(state.salesCalls||[]).find(x=>x.id===id);
+    if(c){
+      gid('call-id').value=c.id;
+      gid('call-name').value=c.name||'';
+      gid('call-price').value=c.price||'';
+      gid('call-info').value=c.info||'';
+      gid('call-date').value=c.dateISO||todayISO();
+      callDraft={person:c.person||'',closed:!!c.closed,pay:c.pay||'contado'};
+      gid('call-del-btn').style.display='inline';
+      gid('call-modal-title').textContent='Editar llamada';
+    }
+  }
+  refreshCallRadios();
+  gid('modal-call').classList.add('on');
+  setTimeout(()=>gid('call-name').focus(),50);
+}
+function closeCallModal(){gid('modal-call').classList.remove('on');}
+function selectCallPerson(p){callDraft.person=p;refreshCallRadios();}
+function selectCallClosed(v){callDraft.closed=v;refreshCallRadios();}
+function selectCallPay(p){callDraft.pay=p;refreshCallRadios();}
+function refreshCallRadios(){
+  document.querySelectorAll('#call-person-row .radio-opt').forEach(o=>{
+    const on=o.dataset.person===callDraft.person;
+    o.classList.toggle('sel',on);
+    o.classList.toggle('con-sel',on&&callDraft.person==='Bianca');
+  });
+  document.querySelectorAll('#call-closed-row .radio-opt').forEach(o=>{
+    const on=(o.dataset.closed==='1')===callDraft.closed && callDraft.closed!==null;
+    o.classList.toggle('sel',on);
+    o.classList.toggle('ok-sel',on&&callDraft.closed===true);
+  });
+  document.querySelectorAll('#call-pay-row .radio-opt').forEach(o=>{
+    o.classList.toggle('sel',o.dataset.pay===callDraft.pay);
+  });
+  gid('call-closed-fields').style.display=callDraft.closed?'block':'none';
+}
+function saveCall(){
+  const name=gid('call-name').value.trim();
+  if(!name){alert('Pon el nombre del cliente.');return;}
+  if(!callDraft.person){alert('Elige quién tuvo la llamada (Hugo/Bianca).');return;}
+  if(callDraft.closed===null){alert('Indica si se cerró o no.');return;}
+  const price=callDraft.closed?(parseFloat(gid('call-price').value)||0):0;
+  const id=gid('call-id').value;
+  if(!state.salesCalls)state.salesCalls=[];
+
+  const dateISO=gid('call-date').value||todayISO();
+  const data={
+    name,person:callDraft.person,closed:callDraft.closed,
+    price,pay:callDraft.closed?callDraft.pay:'',info:gid('call-info').value.trim(),
+    dateISO,date:isoToDisplay(dateISO),ts:new Date(dateISO).getTime()
+  };
+
+  if(id){
+    // EDIT — apply deltas to main metrics
+    const c=state.salesCalls.find(x=>x.id===id);
+    if(c){
+      // perma delta (closed count)
+      const oldPerma=c.closed?1:0, newPerma=data.closed?1:0;
+      state.metrics.perma=Math.max(0,(state.metrics.perma||0)+(newPerma-oldPerma));
+      Object.assign(c,data);
+    }
+  }else{
+    // ADD
+    const c={id:Date.now().toString(),...data};
+    state.salesCalls.push(c);
+    // +1 llamada agendada este mes
+    state.metrics.calls=(state.metrics.calls||0)+1;
+    // +1 cliente permashift si cerró (los ingresos se meten manual)
+    if(c.closed)state.metrics.perma=(state.metrics.perma||0)+1;
+  }
+  persist();render();closeCallModal();
+}
+function deleteCallFromModal(){
+  const id=gid('call-id').value;
+  if(id)deleteCall(id,true);
+  closeCallModal();
+}
+function deleteCall(id,skipConfirm){
+  if(!skipConfirm&&!confirm('¿Eliminar esta llamada?'))return;
+  const c=(state.salesCalls||[]).find(x=>x.id===id);
+  if(c){
+    state.metrics.calls=Math.max(0,(state.metrics.calls||0)-1);
+    if(c.closed)state.metrics.perma=Math.max(0,(state.metrics.perma||0)-1);
+  }
+  state.salesCalls=(state.salesCalls||[]).filter(x=>x.id!==id);
+  persist();render();
+}
+function renderSalesCalls(){
+  const calls=state.salesCalls||[];
+  // Stats
+  const statsEl=gid('calls-stats');
+  if(statsEl){
+    const total=calls.length;
+    const closed=calls.filter(c=>c.closed).length;
+    const rate=total?Math.round(closed/total*100):0;
+    const revenue=calls.filter(c=>c.closed).reduce((s,c)=>s+(c.price||0),0);
+    statsEl.innerHTML='';
+    [
+      {lbl:'Llamadas totales',val:total,cls:''},
+      {lbl:'Cerradas',val:closed,cls:'ok'},
+      {lbl:'% Cierre',val:rate+'%',cls:'b'},
+      {lbl:'Facturado',val:'€'+fmt(revenue),cls:'g'},
+    ].forEach(s=>{
+      const d=document.createElement('div');d.className='calls-stat';
+      d.innerHTML=`<div class="calls-stat-lbl">${s.lbl}</div><div class="calls-stat-val ${s.cls}">${s.val}</div>`;
+      statsEl.appendChild(d);
+    });
+  }
+  // Table
+  const tb=gid('calls-tbody');if(!tb)return;
+  tb.innerHTML='';
+  if(!calls.length){
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td colspan="8" class="calls-empty">Sin llamadas registradas — añade la primera</td>';
+    tb.appendChild(tr);return;
+  }
+  [...calls].sort((a,b)=>(b.ts||0)-(a.ts||0)).forEach(c=>{
+    const tr=document.createElement('tr');
+    tr.style.cursor='pointer';
+    const pc=c.person==='Hugo'?'hugo':c.person==='Bianca'?'bianca':'';
+    tr.innerHTML=`
+      <td style="color:var(--muted);white-space:nowrap">${c.date}</td>
+      <td style="font-weight:600">${esc(c.name)}</td>
+      <td><span class="pill-person ${pc}">${esc(c.person)}</span></td>
+      <td><span class="pill-status ${c.closed?'closed':'open'}">${c.closed?'Cerrada':'Abierta'}</span></td>
+      <td style="color:var(--gold);font-weight:700">${c.closed&&c.price?'€'+fmt(c.price):'—'}</td>
+      <td><span class="pill-pay">${c.pay?(c.pay==='plazos'?'A plazos':'Al contado'):'—'}</span></td>
+      <td class="call-info-cell" title="${esc(c.info)}">${esc(c.info)||'—'}</td>
+      <td></td>`;
+    // edit on row click
+    tr.addEventListener('click',e=>{if(e.target.closest('.call-del'))return;openCallModal(c.id);});
+    // delete button
+    const delTd=tr.lastElementChild;
+    const del=document.createElement('button');del.className='call-del';del.textContent='✕';del.title='Eliminar';
+    del.addEventListener('click',e=>{e.stopPropagation();deleteCall(c.id);});
+    delTd.appendChild(del);
+    tb.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════
+// KPIs
+// ═══════════════════════════
+function calcKpiResult(kpi){
+  if(kpi.calcFn==='rate')return Math.round(kpi.f0.val*kpi.f1.val/100);
+  if(kpi.calcFn==='pct')return kpi.f0.val>0?(kpi.f1.val/kpi.f0.val*100).toFixed(1)+'%':'0%';
+  return'—';
+}
+function renderKpis(){
+  const wrap=gid('kpi-rows');wrap.innerHTML='';
+  (state.kpis||[]).forEach(kpi=>{
+    const row=document.createElement('div');row.className='kpi-row';
+    if(kpi.chain){
+      // KPI multi-paso: pill → %  → pill → % ...
+      let chainHtml='';
+      kpi.chain.forEach((st,i)=>{
+        chainHtml+=`<div class="kpi-pill"><span class="kpi-n">${fmt(st.val)}</span><span class="kpi-u">${st.lbl}</span></div>`;
+        if(i<kpi.chain.length-1){
+          const nv=kpi.chain[i+1].val;
+          const pct=st.val>0?(nv/st.val*100):0;
+          chainHtml+=`<span class="kpi-arr">→ <b style="color:var(--gold)">${pct.toFixed(0)}%</b> →</span>`;
+        }
+      });
+      // resultado global: del primero al último
+      const first=kpi.chain[0].val, last=kpi.chain[kpi.chain.length-1].val;
+      const tot=first>0?(last/first*100):0;
+      row.innerHTML=`<span class="kpi-icon">${kpi.icon}</span>
+        <span class="kpi-lbl">${kpi.label}</span>
+        <div class="kpi-chain">${chainHtml}<span class="kpi-result" style="margin-left:6px">${tot.toFixed(0)}% total</span></div>`;
+    }else{
+      const res=calcKpiResult(kpi);
+      row.innerHTML=`<span class="kpi-icon">${kpi.icon}</span>
+        <span class="kpi-lbl">${kpi.label}</span>
+        <div class="kpi-chain">
+          <div class="kpi-pill"><span class="kpi-n">${fmt(kpi.f0.val)}</span><span class="kpi-u">${kpi.f0.lbl}</span></div>
+          <span class="kpi-arr">→</span>
+          <div class="kpi-pill"><span class="kpi-n">${kpi.f1.val}</span><span class="kpi-u">${kpi.f1.lbl}</span></div>
+          <span class="kpi-arr">→</span>
+          <span class="kpi-result">${res}</span>
+        </div>`;
+    }
+    wrap.appendChild(row);
+  });
+}
+// ═══════════════════════════
+// COSTES DE ENTREGA
+// ═══════════════════════════
+const DELIVERY_DEFAULTS={
+  permaPrice:2500, permaTanda:5,
+  permaCosts:[
+    {id:'c-coach',name:'Coach',amount:900,unit:'tanda',currency:'EUR'},
+    {id:'c-hyp',  name:'Hipnosis',amount:140,unit:'cliente',currency:'USD'}
+  ],
+  dojoPrice:39, dojoLtv:3,
+  dojoCosts:[
+    {id:'c-app',name:'Coste app',amount:3,unit:'mes',currency:'EUR'}
+  ],
+  dojoFixed:[
+    {id:'f-soft',name:'Softwares',amount:545},
+    {id:'f-dev', name:'Programador',amount:500}
+  ]
+};
+// Migración de modelos antiguos
+function getPermaCosts(d){
+  if(d.permaCosts&&d.permaCosts.length)return d.permaCosts;
+  const arr=[];
+  if(d.permaCoach!=null)arr.push({id:'c-coach',name:'Coach',amount:d.permaCoach,unit:'tanda',currency:'EUR'});
+  if(d.permaHypUsd!=null)arr.push({id:'c-hyp',name:'Hipnosis',amount:d.permaHypUsd,unit:'cliente',currency:'USD'});
+  return arr.length?arr:JSON.parse(JSON.stringify(DELIVERY_DEFAULTS.permaCosts));
+}
+function getDojoCosts(d){
+  if(d.dojoCosts&&d.dojoCosts.length)return d.dojoCosts;
+  const arr=[];
+  if(d.dojoApp!=null)arr.push({id:'c-app',name:'Coste app',amount:d.dojoApp,unit:'mes',currency:'EUR'});
+  return arr.length?arr:JSON.parse(JSON.stringify(DELIVERY_DEFAULTS.dojoCosts));
+}
+function getDojoFixed(d){
+  if(d.dojoFixed&&d.dojoFixed.length)return d.dojoFixed;
+  const arr=[];
+  if(d.dojoSoft!=null)arr.push({id:'f-soft',name:'Softwares',amount:d.dojoSoft});
+  if(d.dojoDev!=null)arr.push({id:'f-dev',name:'Programador',amount:d.dojoDev});
+  return arr.length?arr:JSON.parse(JSON.stringify(DELIVERY_DEFAULTS.dojoFixed));
+}
+// Coste por cliente de un item (en € sobre el horizonte relevante)
+function costPerClient(item,tandaSize,ltvMonths){
+  const eur=item.currency==='USD'?(item.amount||0)*getUsdEur():(item.amount||0);
+  if(item.unit==='tanda')return eur/(tandaSize||1);
+  if(item.unit==='mes')return eur*(ltvMonths||1);
+  return eur; // cliente
+}
+// Coste mensual por usuario (para break-even del Dojo)
+function costPerMonth(item,tandaSize,ltvMonths){
+  const eur=item.currency==='USD'?(item.amount||0)*getUsdEur():(item.amount||0);
+  if(item.unit==='mes')return eur;
+  if(item.unit==='cliente')return eur/(ltvMonths||1);
+  if(item.unit==='tanda')return eur/((tandaSize||1)*(ltvMonths||1));
+  return eur;
+}
+function deliveryRow(icon,label,pills,result){
+  const pillsHtml=pills.map(p=>`<div class="kpi-pill"><span class="kpi-n" style="color:${p.color||'var(--con)'}">${p.val}</span><span class="kpi-u">${p.lbl}</span></div>`).join('<span class="kpi-arr">→</span>');
+  const row=document.createElement('div');row.className='kpi-row';
+  row.innerHTML=`<span class="kpi-icon">${icon}</span>
+    <span class="kpi-lbl">${label}</span>
+    <div class="kpi-chain">${pillsHtml}<span class="kpi-arr">→</span><span class="kpi-result">${result}</span></div>`;
+  return row;
+}
+function renderDelivery(){
+  const wrap=gid('delivery-rows');if(!wrap)return;
+  const d=state.deliveryCosts||DELIVERY_DEFAULTS;
+  const R='#e85d3a', G='var(--ok)';
+
+  // PERMASHIFT (por cliente)
+  const permaCosts=getPermaCosts(d);
+  const permaCostClient=permaCosts.reduce((s,c)=>s+costPerClient(c,d.permaTanda,1),0);
+  const permaMargin=d.permaPrice-permaCostClient;
+  const permaMarginPct=d.permaPrice?(permaMargin/d.permaPrice*100):0;
+
+  // EL DOJO (LTV por cliente)
+  const dojoCosts=getDojoCosts(d);
+  const dojoLtvRev=d.dojoPrice*d.dojoLtv;
+  const dojoVarClient=dojoCosts.reduce((s,c)=>s+costPerClient(c,1,d.dojoLtv),0);
+  const dojoMarginClient=dojoLtvRev-dojoVarClient;
+  const monthlyCostUser=dojoCosts.reduce((s,c)=>s+costPerMonth(c,1,d.dojoLtv),0);
+  const monthlyMarginUser=d.dojoPrice-monthlyCostUser;
+  const fixed=getDojoFixed(d);
+  const fixedMonthly=fixed.reduce((s,f)=>s+(f.amount||0),0);
+  const breakeven=monthlyMarginUser>0?Math.ceil(fixedMonthly/monthlyMarginUser):0;
+
+  wrap.innerHTML='';
+  // Permashift: precio + cada coste
+  const permaPills=[{val:'€'+fmt(d.permaPrice),lbl:'precio',color:G}];
+  permaCosts.forEach(c=>permaPills.push({val:'−€'+fmt(costPerClient(c,d.permaTanda,1).toFixed(0)),lbl:c.name,color:R}));
+  wrap.appendChild(deliveryRow('💎','PERMASHIFT · cliente',permaPills,
+    '€'+fmt(permaMargin.toFixed(0))+' margen · '+permaMarginPct.toFixed(0)+'%'));
+
+  // Dojo LTV: ingreso + cada coste variable
+  const dojoPills=[{val:'€'+fmt(dojoLtvRev),lbl:'ingreso LTV',color:G}];
+  dojoCosts.forEach(c=>dojoPills.push({val:'−€'+fmt(costPerClient(c,1,d.dojoLtv).toFixed(0)),lbl:c.name,color:R}));
+  wrap.appendChild(deliveryRow('⛩','EL DOJO · cliente (LTV '+d.dojoLtv+'m)',dojoPills,
+    '€'+fmt(dojoMarginClient.toFixed(0))+' margen / cliente'));
+
+  // Costes fijos: un pill por cada gasto
+  const fixedPills=fixed.map(f=>({val:'−€'+fmt(f.amount),lbl:f.name,color:R}));
+  wrap.appendChild(deliveryRow('🔧','DOJO · costes fijos',
+    fixedPills.length?fixedPills:[{val:'€0',lbl:'sin gastos',color:R}],
+    '€'+fmt(fixedMonthly)+'/mes · break-even ≈ '+breakeven+' usuarios'));
+}
+function addFixedRow(name,amount){
+  const list=gid('dc-fixed-list');
+  const row=document.createElement('div');row.className='modal-task-row';
+  row.innerHTML=`<input type="text" placeholder="Concepto" value="${esc(name||'')}" style="flex:2">
+    <input type="number" placeholder="€/mes" value="${amount!=null?amount:''}" style="flex:1">
+    <button type="button" class="del-task" onclick="this.closest('.modal-task-row').remove()">✕</button>`;
+  list.appendChild(row);
+}
+// Fila de coste variable: concepto + importe + unidad + moneda + borrar
+function addCostRow(listId,item){
+  item=item||{};
+  const list=gid(listId);
+  const row=document.createElement('div');
+  row.className='cost-row';
+  row.style.cssText='display:flex;gap:5px;align-items:center;margin-bottom:5px';
+  const u=item.unit||'cliente', cur=item.currency||'EUR';
+  row.innerHTML=`
+    <input type="text" placeholder="Concepto" value="${esc(item.name||'')}" style="flex:2;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;outline:none;font-family:inherit">
+    <input type="number" placeholder="0" value="${item.amount!=null?item.amount:''}" style="width:64px;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px 8px;color:var(--text);font-size:12px;outline:none;font-family:inherit">
+    <select style="width:48px;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px 4px;color:var(--text);font-size:12px;outline:none;font-family:inherit">
+      <option value="EUR" ${cur==='EUR'?'selected':''}>€</option>
+      <option value="USD" ${cur==='USD'?'selected':''}>$</option>
+    </select>
+    <select style="width:84px;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px 4px;color:var(--text);font-size:12px;outline:none;font-family:inherit">
+      <option value="cliente" ${u==='cliente'?'selected':''}>/ cliente</option>
+      <option value="tanda" ${u==='tanda'?'selected':''}>/ tanda</option>
+      <option value="mes" ${u==='mes'?'selected':''}>/ mes</option>
+    </select>
+    <button type="button" class="del-task" onclick="this.closest('.cost-row').remove()">✕</button>`;
+  list.appendChild(row);
+}
+function readCostList(listId){
+  return Array.from(gid(listId).querySelectorAll('.cost-row')).map((r,i)=>{
+    const txt=r.querySelector('input[type=text]').value.trim();
+    const num=r.querySelector('input[type=number]').value;
+    const sels=r.querySelectorAll('select');
+    return {id:'c'+Date.now()+i,name:txt,amount:parseFloat(num)||0,currency:sels[0].value,unit:sels[1].value};
+  }).filter(c=>c.name);
+}
+function openDeliveryModal(){
+  const d=state.deliveryCosts||DELIVERY_DEFAULTS;
+  gid('dc-permaPrice').value=d.permaPrice;
+  gid('dc-permaTanda').value=d.permaTanda;
+  gid('dc-dojoPrice').value=d.dojoPrice;
+  gid('dc-dojoLtv').value=d.dojoLtv;
+  gid('dc-perma-list').innerHTML='';
+  getPermaCosts(d).forEach(c=>addCostRow('dc-perma-list',c));
+  gid('dc-dojo-list').innerHTML='';
+  getDojoCosts(d).forEach(c=>addCostRow('dc-dojo-list',c));
+  gid('dc-fixed-list').innerHTML='';
+  getDojoFixed(d).forEach(f=>addFixedRow(f.name,f.amount));
+  gid('modal-delivery').classList.add('on');
+}
+function saveDelivery(){
+  const fixed=Array.from(gid('dc-fixed-list').querySelectorAll('.modal-task-row')).map((r,i)=>{
+    const ins=r.querySelectorAll('input');
+    return {id:'f'+Date.now()+i,name:ins[0].value.trim(),amount:parseFloat(ins[1].value)||0};
+  }).filter(f=>f.name);
+  state.deliveryCosts={
+    permaPrice:parseFloat(gid('dc-permaPrice').value)||0,
+    permaTanda:parseFloat(gid('dc-permaTanda').value)||1,
+    permaCosts:readCostList('dc-perma-list'),
+    dojoPrice:parseFloat(gid('dc-dojoPrice').value)||0,
+    dojoLtv:parseFloat(gid('dc-dojoLtv').value)||1,
+    dojoCosts:readCostList('dc-dojo-list'),
+    dojoFixed:fixed
+  };
+  persist();renderDelivery();closeDeliveryModal();
+}
+function closeDeliveryModal(){gid('modal-delivery').classList.remove('on');}
+
+// ═══════════════════════════
+// FUNNEL DE CAPTACIÓN
+// ═══════════════════════════
+const FUNNEL_STAGES=[
+  {key:'leadIg',      label:'Lead Instagram', desc:'entró por IG',        source:true},
+  {key:'leadVsl',     label:'Lead VSL',       desc:'entró por VSL/reels', source:true},
+  {key:'leadCaliente',label:'Respondió',      desc:'abrió conversación',  conv:'% respuesta', bench:60},
+  {key:'vslEnviada',  label:'VSL mandada',    desc:'',                    conv:'% envío VSL', bench:70},
+  {key:'agendada',    label:'Agendada',       desc:'reservó llamada',     conv:'% agenda',    bench:30},
+  {key:'realizada',   label:'Tuvo llamada',   desc:'apareció',            conv:'show rate',   bench:75},
+  {key:'perma',       label:'Miembro Perma',  desc:'venta',               conv:'% cierre',    bench:30},
+];
+function funnelSources(wk){return FUNNEL_STAGES.filter(s=>s.source).reduce((sum,s)=>sum+(wk[s.key]||0),0);}
+function weekMondayISO(){
+  const d=new Date();const day=d.getDay();const diff=(day===0?-6:1)-day;
+  d.setDate(d.getDate()+diff);
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function latestFunnelWeek(){
+  const w=state.funnel&&state.funnel.weeks?state.funnel.weeks:[];
+  if(!w.length)return null;
+  return [...w].sort((a,b)=>(b.ts||0)-(a.ts||0))[0];
+}
+function renderFunnel(){
+  const body=gid('funnel-body');if(!body)return;
+  const wk=latestFunnelWeek();
+  const lblEl=gid('funnel-week-lbl');
+  if(!wk){
+    if(lblEl)lblEl.textContent='';
+    body.innerHTML='<div class="funnel-empty">Sin datos aún — registra tu primera semana con los conteos de GoHighLevel</div>';
+    return;
+  }
+  if(lblEl){lblEl.innerHTML='semana del '+wk.date+' · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="openFunnelWeek(\''+wk.id+'\')">editar</span>';}
+  const sumSources=funnelSources(wk);
+  const nSources=FUNNEL_STAGES.filter(s=>s.source).length;
+  const top=Math.max(sumSources,1);
+
+  // Conversiones (la primera no-source arranca desde la suma de fuentes)
+  const convs=[];
+  for(let i=nSources;i<FUNNEL_STAGES.length;i++){
+    const prev=(i===nSources)?sumSources:(wk[FUNNEL_STAGES[i-1].key]||0);
+    const cur=wk[FUNNEL_STAGES[i].key]||0;
+    const pct=prev>0?(cur/prev*100):0;
+    const bench=FUNNEL_STAGES[i].bench;
+    convs.push({i,pct,bench,ratio:bench?pct/bench:1,stage:FUNNEL_STAGES[i]});
+  }
+  let bottleneck=null;
+  convs.forEach(c=>{if(!bottleneck||c.ratio<bottleneck.ratio)bottleneck=c;});
+
+  let html='';
+  if(bottleneck){
+    html+=`<div class="funnel-bottleneck">🔻 Cuello de botella: <b>${bottleneck.stage.conv}</b> al ${bottleneck.pct.toFixed(0)}% (objetivo ${bottleneck.bench}%). Es lo que más te limita — arréglalo primero.</div>`;
+  }
+
+  // ── Comparativa apertura de conversación por fuente ──
+  if(wk.respondidoIg!=null||wk.respondidoVsl!=null){
+    const igL=wk.leadIg||0, igR=wk.respondidoIg||0, igP=igL>0?(igR/igL*100):0;
+    const vsL=wk.leadVsl||0, vsR=wk.respondidoVsl||0, vsP=vsL>0?(vsR/vsL*100):0;
+    const winner = (igL&&vsL) ? (igP>=vsP?'ig':'vsl') : '';
+    const srcRow=(name,leads,resp,pct,color,win)=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:7px 0">
+        <span style="font-size:11px;font-weight:700;min-width:90px;color:${color}">${name}${win?' 🏆':''}</span>
+        <span style="font-size:11px;color:var(--muted);min-width:130px">${fmt(leads)} leads → ${fmt(resp)} abrió</span>
+        <div style="flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;min-width:80px">
+          <div style="height:100%;width:${Math.min(100,pct)}%;background:${color};border-radius:3px"></div>
+        </div>
+        <span style="font-size:14px;font-weight:800;color:${color};min-width:48px;text-align:right">${pct.toFixed(0)}%</span>
+      </div>`;
+    html+=`<div style="background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;margin-bottom:14px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">Apertura de conversación por fuente</div>
+      ${srcRow('Instagram',igL,igR,igP,'#d07ed0',winner==='ig')}
+      ${srcRow('VSL / Reels',vsL,vsR,vsP,'var(--con)',winner==='vsl')}
+    </div>`;
+  }
+
+  const pillFn=(count,label,opts)=>{
+    opts=opts||{};
+    const w=Math.max(4,Math.min(100,(count/top*100)));
+    const src=opts.src?' src':'';
+    return `<div class="funnel-pill${opts.total?' total':''}${opts.bottle?' bottleneck':''}" title="${opts.desc||''}">
+      <div class="funnel-pill-top"><span class="funnel-pill-n${src}">${fmt(count)}</span><span class="funnel-pill-u">${label}</span></div>
+      <div class="funnel-pill-bar"><div class="funnel-pill-fill${src}" style="width:${opts.total?100:w}%"></div></div>
+    </div>`;
+  };
+  html+='<div class="funnel-flow">';
+  FUNNEL_STAGES.forEach((s,idx)=>{
+    const count=wk[s.key]||0;
+    const isBottleCard=bottleneck&&bottleneck.i===idx;
+    html+=pillFn(count,s.label,{src:s.source,bottle:isBottleCard,desc:s.desc});
+    // Entre las dos fuentes: "+"  ; tras la última fuente: "=" + Total
+    if(s.source&&idx<nSources-1) html+=`<span class="funnel-plus">+</span>`;
+    if(s.source&&idx===nSources-1){
+      html+=`<span class="funnel-plus">=</span>`+pillFn(sumSources,'Total leads',{total:true});
+    }
+    // Conversión hacia el siguiente (no entre fuentes)
+    const next=FUNNEL_STAGES[idx+1];
+    if(next&&!next.source){
+      const prev=(idx===nSources-1)?sumSources:count;
+      const cur=wk[next.key]||0;
+      const pct=prev>0?(cur/prev*100):0;
+      const isBottle=bottleneck&&bottleneck.i===idx+1;
+      const cls=isBottle?'bad':(pct>=next.bench?'good':'');
+      html+=`<div class="funnel-conv" title="${next.conv} · objetivo ${next.bench}%"><b class="${cls}">${pct.toFixed(0)}%</b><span class="ar">→</span></div>`;
+    }
+  });
+  html+='</div>';
+  body.innerHTML=html;
+}
+const FN_EXTRA=['respondidoIg','respondidoVsl'];
+function openFunnelWeek(id){
+  if(!state.funnel)state.funnel={weeks:[]};
+  gid('fn-id').value='';
+  gid('fn-date').value=weekMondayISO();
+  gid('funnel-modal-title').textContent='Registrar semana';
+  gid('fn-del-btn').style.display='none';
+  const setVal=(k,v)=>{const el=gid('fn-'+k);if(el)el.value=v;};
+  FUNNEL_STAGES.forEach(s=>setVal(s.key,''));
+  FN_EXTRA.forEach(k=>setVal(k,''));
+  if(id){
+    const wk=state.funnel.weeks.find(w=>w.id===id);
+    if(wk){
+      gid('fn-id').value=wk.id;
+      gid('fn-date').value=wk.dateISO||weekMondayISO();
+      FUNNEL_STAGES.forEach(s=>setVal(s.key,wk[s.key]!=null?wk[s.key]:''));
+      FN_EXTRA.forEach(k=>setVal(k,wk[k]!=null?wk[k]:''));
+      gid('funnel-modal-title').textContent='Editar semana';
+      gid('fn-del-btn').style.display='inline';
+    }
+  }
+  gid('modal-funnel').classList.add('on');
+}
+function saveFunnelWeek(){
+  if(!state.funnel)state.funnel={weeks:[]};
+  const dateISO=gid('fn-date').value||weekMondayISO();
+  const data={dateISO,date:isoToDisplay(dateISO),ts:new Date(dateISO).getTime()};
+  const getVal=k=>{const el=gid('fn-'+k);return el?(parseFloat(el.value)||0):0;};
+  FUNNEL_STAGES.forEach(s=>{const el=gid('fn-'+s.key);if(el)data[s.key]=parseFloat(el.value)||0;});
+  FN_EXTRA.forEach(k=>{data[k]=getVal(k);});
+  // leadCaliente (respondió total) = suma de las dos fuentes
+  data.leadCaliente=data.respondidoIg+data.respondidoVsl;
+  const id=gid('fn-id').value;
+  if(id){
+    const wk=state.funnel.weeks.find(w=>w.id===id);
+    if(wk)Object.assign(wk,data);
+  }else{
+    // si ya existe una semana con esa fecha, la actualiza
+    const existing=state.funnel.weeks.find(w=>w.dateISO===dateISO);
+    if(existing)Object.assign(existing,data);
+    else state.funnel.weeks.push({id:Date.now().toString(),...data});
+  }
+  persist();renderFunnel();closeFunnelModal();
+}
+function deleteFunnelWeek(){
+  const id=gid('fn-id').value;
+  if(id&&confirm('¿Eliminar esta semana?')){
+    state.funnel.weeks=state.funnel.weeks.filter(w=>w.id!==id);
+    persist();renderFunnel();
+  }
+  closeFunnelModal();
+}
+function closeFunnelModal(){gid('modal-funnel').classList.remove('on');}
+
+function openKpiModal(){
+  const area=gid('kpi-edit-area');area.innerHTML='';
+  (state.kpis||[]).forEach(kpi=>{
+    const d=document.createElement('div');d.style.marginBottom='14px';
+    let inner=`<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">${kpi.icon} ${kpi.label}</div>`;
+    if(kpi.chain){
+      inner+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px">';
+      kpi.chain.forEach((st,i)=>{
+        inner+=`<div class="field"><label>${st.lbl}</label><input type="number" data-kpi="${kpi.id}" data-chain="${i}" value="${st.val}"></div>`;
+      });
+      inner+='</div>';
+    }else{
+      inner+=`<div class="two-col">
+        <div class="field"><label>${kpi.f0.lbl}</label><input type="number" data-kpi="${kpi.id}" data-f="0" value="${kpi.f0.val}"></div>
+        <div class="field"><label>${kpi.f1.lbl}</label><input type="number" data-kpi="${kpi.id}" data-f="1" value="${kpi.f1.val}"></div>
+      </div>`;
+    }
+    d.innerHTML=inner;
+    area.appendChild(d);
+  });
+  gid('modal-kpi').classList.add('on');
+}
+function saveKpis(){
+  gid('kpi-edit-area').querySelectorAll('input[data-kpi]').forEach(inp=>{
+    const kpi=(state.kpis||[]).find(k=>k.id===inp.dataset.kpi);if(!kpi)return;
+    if(inp.dataset.chain!=null&&kpi.chain){kpi.chain[parseInt(inp.dataset.chain)].val=parseFloat(inp.value)||0;return;}
+    if(inp.dataset.f==='0')kpi.f0.val=parseFloat(inp.value)||0;
+    if(inp.dataset.f==='1')kpi.f1.val=parseFloat(inp.value)||0;
+  });
+  persist();render();closeKpiModal();
+}
+function closeKpiModal(){gid('modal-kpi').classList.remove('on');}
+
+function renderHistory(){
+  const tb=gid('hist-tbody');
+  if(!state.history.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--dim);padding:14px">Sin snapshots aún</td></tr>';return;}
+  tb.innerHTML=[...state.history].reverse().map(s=>`<tr>
+    <td>${s.date}</td><td>${s.dojo!=null?fmt(s.dojo):'—'}</td><td>${s.perma!=null?fmt(s.perma):'—'}</td>
+    <td>${s.tandas!=null?s.tandas:'—'}</td><td>${s.calls!=null?fmt(s.calls):'—'}</td>
+    <td style="color:var(--gold)">${s.revenue!=null?'€'+fmt(s.revenue):'—'}</td>
+    <td>${s.yt!=null?fmt(s.yt):'—'}</td><td>${s.ig!=null?fmt(s.ig):'—'}</td>
+  </tr>`).join('');
+}
+
+// ═══════════════════════════
+// EL PLAN
+// ═══════════════════════════
+function savePlan(html){state.plan=html;persist();}
+function initPlan(){
+  const el=gid('plan-body');
+  if(el&&state.plan)el.innerHTML=state.plan;
+}
+
+// ═══════════════════════════
+// GRÁFICAS
+// ═══════════════════════════
+let chartInstances={};
+function showChartEmpty(id,msg){
+  const el=gid('chart-'+id);if(!el)return;
+  el.style.display='none';
+  if(chartInstances[id]){chartInstances[id].destroy();delete chartInstances[id];}
+  const p=el.parentElement;
+  if(!p.querySelector('.grafica-empty')){
+    const d=document.createElement('div');d.className='grafica-empty';d.textContent=msg;
+    p.appendChild(d);
+  }
+}
+function renderGraficas(){
+  renderRevAcumChart();
+  renderIncExpChart();
+  renderCallsChart();
+  renderPermaChart();
+
+  // Charts basados en snapshots: dojo, yt, ig
+  const h=state.history;
+  const snapCfg=[
+    {id:'dojo',key:'dojo',color:'#4caf7d',label:'Usuarios Dojo'},
+    {id:'yt',  key:'yt',  color:'#00c8d4',label:'YouTube subs'},
+    {id:'ig',  key:'ig',  color:'#d07ed0',label:'Instagram seg.'},
+  ];
+  if(!h.length){
+    snapCfg.forEach(c=>showChartEmpty(c.id,'Sin datos aún — guarda snapshots en Métricas'));
+    return;
+  }
+  const labels=h.map(s=>s.date);
+  snapCfg.forEach(({id,key,color,label})=>{
+    const canvas=gid('chart-'+id);if(!canvas)return;
+    canvas.style.display='block';
+    const p=canvas.parentElement;
+    const existing=p.querySelector('.grafica-empty');if(existing)existing.remove();
+    const vals=h.map(s=>s[key]!=null?s[key]:null);
+    if(chartInstances[id]){chartInstances[id].destroy();}
+    const ctx=canvas.getContext('2d');
+    const grad=ctx.createLinearGradient(0,0,0,200);
+    grad.addColorStop(0,color+'55');grad.addColorStop(1,color+'00');
+    chartInstances[id]=lineChart(ctx,labels,[{
+      label,data:vals,borderColor:color,backgroundColor:grad,
+      borderWidth:2,fill:true,tension:0.4,pointRadius:3,pointHoverRadius:6,
+      pointBackgroundColor:color,spanGaps:true,
+      segment:{borderColor:c=>c.p0.parsed.y>c.p1.parsed.y?'#e85d3a':color}
+    }]);
+  });
+}
+
+// Helper para crear gráfico de líneas con estilo común
+function lineChart(ctx,labels,datasets,opts){
+  opts=opts||{};
+  return new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets},
+    options:{
+      responsive:true,
+      plugins:{
+        legend:opts.legend||{display:false},
+        tooltip:{backgroundColor:'rgba(0,0,0,0.8)',titleColor:'#fff',bodyColor:'rgba(255,255,255,0.7)',
+          borderColor:'rgba(255,255,255,0.1)',borderWidth:1,callbacks:opts.tooltipCb||{}}
+      },
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#555',font:{size:10}},border:{color:'rgba(255,255,255,.06)'}},
+        y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#555',font:{size:10},callback:opts.yCb},border:{color:'rgba(255,255,255,.06)'}}
+      }
+    }
+  });
+}
+
+// Agrupa importes del log por mes (YYYY-MM)
+function monthKey(ts){const d=new Date(ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+function monthLabel(key){const[y,m]=key.split('-');const ms=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];return ms[parseInt(m)-1]+' '+y.slice(2);}
+
+// Gráfica: Ingresos acumulados (solo ingresos, por fecha)
+function renderIncExpChart(){
+  const canvas=gid('chart-incexp');if(!canvas)return;
+  const p=canvas.parentElement;
+  const old=p.querySelector('.grafica-empty');if(old)old.remove();
+  if(chartInstances['incexp']){chartInstances['incexp'].destroy();}
+  const log=[...(state.revenueLog||[])].filter(e=>!entryIsExpense(e)).sort((a,b)=>(a.ts||0)-(b.ts||0));
+  if(!log.length){showChartEmpty('incexp','Sin ingresos registrados aún');return;}
+  canvas.style.display='block';
+  const labels=log.map(e=>e.date);
+  let acc=0;const data=log.map(e=>{acc+=(e.amount||0);return acc;});
+  const ctx=canvas.getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,200);grad.addColorStop(0,'#4caf7d55');grad.addColorStop(1,'#4caf7d00');
+  chartInstances['incexp']=lineChart(ctx,labels,[{
+    label:'Ingresos acum.',data,borderColor:'#4caf7d',backgroundColor:grad,
+    borderWidth:2.5,fill:true,tension:0.4,pointRadius:3,pointHoverRadius:6,pointBackgroundColor:'#4caf7d'
+  }],{yCb:v=>'€'+fmt(v),tooltipCb:{label:ctx=>'Ingresos acum.: €'+fmt(ctx.parsed.y)}});
+}
+
+// Gráfica: Llamadas agendadas por día (NO acumulativa) — desde salesCalls
+function renderCallsChart(){
+  const canvas=gid('chart-calls');if(!canvas)return;
+  const p=canvas.parentElement;
+  const old=p.querySelector('.grafica-empty');if(old)old.remove();
+  if(chartInstances['calls']){chartInstances['calls'].destroy();}
+  const calls=state.salesCalls||[];
+  if(!calls.length){showChartEmpty('calls','Sin llamadas registradas aún');return;}
+  canvas.style.display='block';
+  const byDay={};
+  calls.forEach(c=>{const k=c.dateISO||new Date(c.ts||Date.now()).toISOString().slice(0,10);byDay[k]=(byDay[k]||0)+1;});
+  const keys=Object.keys(byDay).sort();
+  const labels=keys.map(isoToDisplay);
+  const ctx=canvas.getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,200);grad.addColorStop(0,'#e8593a55');grad.addColorStop(1,'#e8593a00');
+  chartInstances['calls']=lineChart(ctx,labels,[{
+    label:'Llamadas',data:keys.map(k=>byDay[k]),borderColor:'#e8593a',backgroundColor:grad,
+    borderWidth:2.5,fill:true,tension:0.4,pointRadius:3,pointHoverRadius:6,pointBackgroundColor:'#e8593a'
+  }],{tooltipCb:{label:ctx=>'Llamadas: '+ctx.parsed.y}});
+}
+
+// Gráfica: Permashift acumulado clientes — desde salesCalls cerradas por fecha
+function renderPermaChart(){
+  const canvas=gid('chart-perma');if(!canvas)return;
+  const p=canvas.parentElement;
+  const old=p.querySelector('.grafica-empty');if(old)old.remove();
+  if(chartInstances['perma']){chartInstances['perma'].destroy();}
+  const closed=(state.salesCalls||[]).filter(c=>c.closed).sort((a,b)=>(a.ts||0)-(b.ts||0));
+  if(!closed.length){showChartEmpty('perma','Sin ventas cerradas aún — registra llamadas');return;}
+  canvas.style.display='block';
+  const labels=closed.map(c=>c.date);
+  let acc=0;const data=closed.map(()=>++acc);
+  const ctx=canvas.getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,200);grad.addColorStop(0,'#f0a50055');grad.addColorStop(1,'#f0a50000');
+  chartInstances['perma']=lineChart(ctx,labels,[{
+    label:'Clientes',data,borderColor:'#f0a500',backgroundColor:grad,
+    borderWidth:2.5,fill:true,tension:0.4,pointRadius:3,pointHoverRadius:6,pointBackgroundColor:'#f0a500'
+  }],{tooltipCb:{label:ctx=>'Clientes acum.: '+ctx.parsed.y}});
+}
+
+// Gráfica de dinero acumulado a partir del registro de ingresos (por fecha)
+function renderRevAcumChart(){
+  const canvas=gid('chart-revacum');if(!canvas)return;
+  const p=canvas.parentElement;
+  const log=[...(state.revenueLog||[])].sort((a,b)=>(a.ts||0)-(b.ts||0));
+  const old=p.querySelector('.grafica-empty');if(old)old.remove();
+  if(chartInstances['revacum']){chartInstances['revacum'].destroy();}
+  if(!log.length){
+    canvas.style.display='none';
+    const d=document.createElement('div');d.className='grafica-empty';
+    d.textContent='Sin movimientos registrados aún — añade ingresos o gastos con fecha en Métricas';
+    p.appendChild(d);return;
+  }
+  canvas.style.display='block';
+  const labels=log.map(e=>e.date);
+  // Neto acumulado: ingresos suman, gastos restan
+  let acc=0;const data=log.map(e=>{acc+=(entryIsExpense(e)?-(e.amount||0):(e.amount||0));return acc;});
+  const ctx=canvas.getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,240);
+  grad.addColorStop(0,'#4caf7d55');grad.addColorStop(1,'#4caf7d00');
+  chartInstances['revacum']=new Chart(ctx,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:'Acumulado',data,
+      borderColor:'#4caf7d',backgroundColor:grad,
+      borderWidth:2.5,fill:true,tension:0.4,
+      pointRadius:3,pointHoverRadius:6,pointBackgroundColor:'#4caf7d'
+    }]},
+    options:{
+      responsive:true,
+      plugins:{legend:{display:false},tooltip:{
+        backgroundColor:'rgba(0,0,0,0.8)',titleColor:'#fff',bodyColor:'rgba(255,255,255,0.7)',
+        borderColor:'rgba(255,255,255,0.1)',borderWidth:1,
+        callbacks:{label:ctx=>'Acumulado: €'+fmt(ctx.parsed.y)}
+      }},
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#555',font:{size:10}},border:{color:'rgba(255,255,255,.06)'}},
+        y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{color:'#555',font:{size:10},callback:v=>'€'+fmt(v)},border:{color:'rgba(255,255,255,.06)'}}
+      }
+    }
+  });
+}
+
+// ═══════════════════════════
+// OVERLAYS
+// ═══════════════════════════
+document.querySelectorAll('.overlay').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)o.classList.remove('on')}));
+gid('mm-val').addEventListener('keydown',e=>{if(e.key==='Enter')saveMetric();});
+gid('rev-amount').addEventListener('keydown',e=>{if(e.key==='Enter')saveRevEntry();});
+
+// ═══════════════════════════
+// INIT
+// ═══════════════════════════
+if(!state.metrics.calls)state.metrics.calls=0;
+if(!state.milestones)state.milestones=JSON.parse(JSON.stringify(INIT_MILESTONES));
+if(!state.activeTarget)state.activeTarget={dojo:'dn-100',permashift:'pn-1t',youtube:'yn-25k',instagram:'in-100k'};
+if(!state.epVision)state.epVision={dojo:'',hugo:''};
+if(!state.epOpen)state.epOpen={dojo:false,hugo:false};
+if(!state.epCards)state.epCards=JSON.parse(JSON.stringify(EP_CARD_DEFAULTS));
+if(!state.hugoImgs)state.hugoImgs={yt:null,ig:null};
+if(!state.metrics.revenue)state.metrics.revenue=null;
+if(!state.revenueLog)state.revenueLog=[];
+if(!state.salesCalls)state.salesCalls=[];
+if(!state.tools)state.tools=[];
+// Seed herramientas recurrentes (una sola vez)
+if(!state.seededTools){
+  const ST=[
+    ['Launchpass',24,'',8],['Form',10,'studio.buymea... (link)',15],['Canva',12,'',7],
+    ['Systeme',15,'',1],['Capcut',12,'suscripción iPhone',13],['Railway',5,'',21],
+    ['OpenAI Tokens',70,'platform.openai.com',null],['Google Admin',8,'cuenta proyecto eter',1],
+    ['Banahosting',7,'',10],['ElevenLabs',5,'',30],['Manychat',15,'',6],
+    ['Meta Verified',16,'suscripción iPhone',7],['iCloud',10,'',16],['Discord Nitro',10,'',29],
+    ['Adobe Creative',44,'',16],['Hostinger',22,'Dojo',19],['Claude',21,'',null],
+    ['Zapier',31,'',null],['Calendly',20,'',null],['Simyo',15,'10 euros de tarjeta +',13],
+    ['NLP Com',50,'',13],['Highsfield',49,'',7],['Artlist',16,'',3]
+  ];
+  ST.forEach((t,i)=>state.tools.push({id:'tool-seed-'+i,name:t[0],amount:t[1],info:t[2],day:t[3],currency:'EUR'}));
+  state.seededTools=true;
+}
+if(!state.usdEur)state.usdEur=0.93;
+if(!state.deliveryCosts)state.deliveryCosts=JSON.parse(JSON.stringify(DELIVERY_DEFAULTS));
+// KPI multi-paso Leads → Agendas (añadir si no existe)
+if(state.kpis&&!state.kpis.find(k=>k.id==='leadsAgendas')){
+  state.kpis.push({id:'leadsAgendas',icon:'🎯',label:'LEADS → AGENDAS',chain:[
+    {lbl:'Leads',val:15},
+    {lbl:'Conversaciones',val:6},
+    {lbl:'Cualificado',val:4},
+    {lbl:'Calendario env.',val:3},
+    {lbl:'Agendas',val:2}
+  ]});
+}
+if(!state.funnel)state.funnel={weeks:[]};
+// Seed: semana 1 de junio 2026 (una sola vez)
+if(!state.seededFunnelW1){
+  const di='2026-06-01';
+  state.funnel.weeks.push({
+    id:'fn-w1jun', dateISO:di, date:isoToDisplay(di), ts:new Date(di).getTime(),
+    leadVsl:0, leadIg:15, respondidoIg:6, respondidoVsl:0, leadCaliente:6, vslEnviada:3, agendada:2, realizada:2, perma:2
+  });
+  state.seededFunnelW1=true;
+}
+// Migración: semanas antiguas sin desglose por fuente → atribuye lo respondido a la fuente con leads
+(state.funnel.weeks||[]).forEach(wk=>{
+  if(wk.respondidoIg==null&&wk.respondidoVsl==null&&wk.leadCaliente!=null){
+    if((wk.leadVsl||0)>0&&(wk.leadIg||0)===0){wk.respondidoVsl=wk.leadCaliente;wk.respondidoIg=0;}
+    else{wk.respondidoIg=wk.leadCaliente;wk.respondidoVsl=0;}
+  }
+});
+if(!state.plan)state.plan='';
+
+// ── SEED: movimientos de junio 2026 (se cargan una sola vez) ──
+const SEED_JUN2026=[
+  {type:'expense',amount:196,   currency:'EUR',dateISO:'2026-06-07',category:'Miscellaneous',     note:'Hugo González Moreno (transferencia)'},
+  {type:'expense',amount:29,    currency:'USD',dateISO:'2026-06-07',category:'Entrega Dojo',       note:'LaunchPass (software)'},
+  {type:'expense',amount:11.99, currency:'EUR',dateISO:'2026-06-07',category:'Entrega Dojo',       note:'Canva (software)'},
+  {type:'expense',amount:18,    currency:'EUR',dateISO:'2026-06-07',category:'Entrega Dojo',       note:'Anthropic / Claude (software)'},
+  {type:'expense',amount:25,    currency:'USD',dateISO:'2026-06-06',category:'Entrega Dojo',       note:'Manychat (software)'},
+  {type:'expense',amount:68.59, currency:'EUR',dateISO:'2026-06-06',category:'Comida',             note:'Uber Eats'},
+  {type:'expense',amount:9.99,  currency:'EUR',dateISO:'2026-06-05',category:'Entrega Dojo',       note:'Apple / iTunes (suscripción)'},
+  {type:'expense',amount:16.34, currency:'EUR',dateISO:'2026-06-04',category:'Entrega Dojo',       note:'Artlist (música contenido)'},
+  {type:'expense',amount:1000,  currency:'EUR',dateISO:'2026-06-04',category:'Miscellaneous',     note:'Hugo González Moreno (transferencia)'},
+  {type:'income', amount:13.58, currency:'EUR',dateISO:'2026-06-04',                               note:'Stripe (Dojo)'},
+  {type:'income', amount:1500,  currency:'EUR',dateISO:'2026-06-04',                               note:'Astrolup LLC'},
+  {type:'expense',amount:16,    currency:'EUR',dateISO:'2026-06-03',category:'Entrega Permashift', note:'Bianca Araujo García (equipo)'},
+  {type:'expense',amount:0.70,  currency:'EUR',dateISO:'2026-06-03',category:'Miscellaneous',     note:'FSV (comisión)'},
+  {type:'expense',amount:4.19,  currency:'EUR',dateISO:'2026-06-03',category:'Entrega Dojo',       note:'Apple / iTunes'},
+  {type:'income', amount:200,   currency:'EUR',dateISO:'2026-06-03',                               note:'Isaac Torres Díaz'},
+  {type:'income', amount:0.32,  currency:'EUR',dateISO:'2026-06-03',                               note:'Cashback'},
+  {type:'income', amount:13.84, currency:'EUR',dateISO:'2026-06-03',                               note:'Stripe (Dojo)'},
+  {type:'expense',amount:6.24,  currency:'EUR',dateISO:'2026-06-02',category:'Entrega Dojo',       note:'Banahost (hosting)'},
+  {type:'income', amount:8.09,  currency:'EUR',dateISO:'2026-06-02',                               note:'Stripe (Dojo)'},
+  {type:'expense',amount:17,    currency:'USD',dateISO:'2026-06-01',category:'Entrega Dojo',       note:'Systeme.io (software)'},
+  {type:'expense',amount:230.87,currency:'USD',dateISO:'2026-06-01',category:'Miscellaneous',     note:'MindSolution LLC'},
+  {type:'income', amount:27.78, currency:'EUR',dateISO:'2026-06-01',                               note:'Stripe (Dojo)'},
+  {type:'expense',amount:0.70,  currency:'EUR',dateISO:'2026-06-01',category:'Miscellaneous',     note:'FSV (comisión)'}
+];
+if(!state.seededJun2026){
+  if(!state.revenueLog)state.revenueLog=[];
+  SEED_JUN2026.forEach((m,i)=>{
+    const raw=m.amount, cur=m.currency||'EUR';
+    const amount=cur==='USD'?Math.round(raw*(state.usdEur||0.93)*100)/100:raw;
+    state.revenueLog.push({
+      id:'seed_jun26_'+i,type:m.type,amount,currency:cur,origAmount:raw,
+      dateISO:m.dateISO,date:isoToDisplay(m.dateISO),ts:new Date(m.dateISO).getTime(),
+      note:m.note||'',category:m.category||''
+    });
+  });
+  state.metrics.revenue=calcIncomeTotal();
+  state.seededJun2026=true;
+  persist();
+}
+
+initVis();
+renderEpCards();
+initPlan();
+render();
+</script>
+</body>
+</html>
