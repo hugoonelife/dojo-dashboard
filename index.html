@@ -645,8 +645,9 @@ tr:last-child td{border-bottom:none}
     <div class="kpi-hd">
       <h3>Funnel de captación · semanal</h3>
       <div style="display:flex;gap:8px;align-items:center">
+        <select id="funnel-week-select" onchange="setFunnelWeek(this.value)" style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:inherit;outline:none;cursor:pointer"></select>
         <span id="funnel-week-lbl" style="font-size:11px;color:var(--dim)"></span>
-        <button class="btn btn-p" style="font-size:11px;padding:5px 12px" onclick="openFunnelWeek()">+ Registrar semana</button>
+        <button class="btn btn-s" style="font-size:11px;padding:5px 12px" onclick="openFunnelWeek()">✍ Editar/registrar manual</button>
       </div>
     </div>
     <div id="funnel-body"></div>
@@ -2595,37 +2596,59 @@ function computeCrmWeek(startTs,endTs){
   });
   return wk;
 }
-function toggleCrmMode(){crmMode=!crmMode;renderFunnel();}
+// ── Selección de semana (una sola vista: manual si existe, si no CRM) ──
+let funnelWeekISO=null; // ISO del lunes seleccionado; null = semana actual
+function setFunnelWeek(iso){funnelWeekISO=iso;renderFunnel();}
+function mondaysList(n){
+  const out=[]; const d=new Date(); const day=d.getDay(); d.setDate(d.getDate()-(day===0?-6:1)+1-1);
+  // recalcular lunes actual de forma fiable
+  const cur=new Date(); const cd=cur.getDay(); cur.setDate(cur.getDate()-(cd===0?6:cd-1));
+  for(let i=0;i<n;i++){const w=new Date(cur);w.setDate(cur.getDate()-7*i);
+    out.push(w.getFullYear()+'-'+String(w.getMonth()+1).padStart(2,'0')+'-'+String(w.getDate()).padStart(2,'0'));}
+  return out;
+}
+// Datos de una semana: manual si la registraste, si no calculada del CRM
+function getFunnelWeek(weekISO){
+  const manual=(state.funnel&&state.funnel.weeks||[]).find(w=>w.dateISO===weekISO);
+  if(manual) return {wk:manual,isAuto:false};
+  if(crmReady&&crmEvents.length){
+    const startTs=new Date(weekISO).getTime();
+    const wk=computeCrmWeek(startTs,startTs+7*24*60*60*1000);
+    wk.date=isoToDisplay(weekISO); wk.dateISO=weekISO;
+    return {wk,isAuto:true};
+  }
+  return {wk:null,isAuto:true};
+}
 function renderFunnel(){
   const body=gid('funnel-body');if(!body)return;
   const lblEl=gid('funnel-week-lbl');
-  let wk, isAuto=false;
-  const useCrm = crmMode && crmReady && crmEvents.length;
-  if(useCrm){
-    const startISO=weekMondayISO();
-    const startTs=new Date(startISO).getTime();
-    wk=computeCrmWeek(startTs,startTs+7*24*60*60*1000);
-    wk.date=isoToDisplay(startISO);
-    isAuto=true;
-  } else {
-    wk=latestFunnelWeek();
+  const sel=gid('funnel-week-select');
+  const curISO=weekMondayISO();
+  if(!funnelWeekISO) funnelWeekISO=curISO;
+
+  // Opciones del selector: últimas 8 semanas + cualquier semana manual antigua
+  const isoSet=new Set(mondaysList(8));
+  (state.funnel&&state.funnel.weeks||[]).forEach(w=>{if(w.dateISO)isoSet.add(w.dateISO);});
+  const isos=[...isoSet].sort((a,b)=>b.localeCompare(a));
+  if(sel){
+    sel.innerHTML=isos.map(iso=>{
+      const manual=(state.funnel&&state.funnel.weeks||[]).find(w=>w.dateISO===iso);
+      const tag=manual?' · manual':(iso===curISO?' · auto (CRM)':'');
+      const lbl=(iso===curISO?'Esta semana':'Sem. '+isoToDisplay(iso))+tag;
+      return `<option value="${iso}" ${iso===funnelWeekISO?'selected':''}>${lbl}</option>`;
+    }).join('');
   }
+
+  const {wk,isAuto}=getFunnelWeek(funnelWeekISO);
   if(!wk){
-    if(lblEl){
-      lblEl.innerHTML = crmReady&&crmEvents.length
-        ? '<span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="toggleCrmMode()">usar datos CRM</span>'
-        : '';
-    }
-    body.innerHTML='<div class="funnel-empty">Sin datos aún — registra una semana o mueve leads en el CRM</div>';
+    if(lblEl)lblEl.textContent='';
+    body.innerHTML='<div class="funnel-empty">Sin datos de esta semana — regístrala manual o mueve leads en el CRM</div>';
     return;
   }
   if(lblEl){
-    if(isAuto){
-      lblEl.innerHTML='🔄 Auto desde CRM · semana del '+wk.date+' · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="toggleCrmMode()">ver manual</span>';
-    } else {
-      const toggle = (crmReady&&crmEvents.length) ? ' · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="toggleCrmMode()">usar CRM</span>' : '';
-      lblEl.innerHTML='semana del '+wk.date+(wk.id?' · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="openFunnelWeek(\''+wk.id+'\')">editar</span>':'')+toggle;
-    }
+    lblEl.innerHTML = isAuto
+      ? '🔄 Auto desde CRM'
+      : '✍ Manual · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="openFunnelWeek(\''+wk.id+'\')">editar</span>';
   }
   const sumSources=funnelSources(wk);
   const nSources=FUNNEL_STAGES.filter(s=>s.source).length;
@@ -2706,7 +2729,7 @@ const FN_EXTRA=['respondidoIg','respondidoVsl'];
 function openFunnelWeek(id){
   if(!state.funnel)state.funnel={weeks:[]};
   gid('fn-id').value='';
-  gid('fn-date').value=weekMondayISO();
+  gid('fn-date').value=funnelWeekISO||weekMondayISO();
   gid('funnel-modal-title').textContent='Registrar semana';
   gid('fn-del-btn').style.display='none';
   const setVal=(k,v)=>{const el=gid('fn-'+k);if(el)el.value=v;};
@@ -2744,6 +2767,7 @@ function saveFunnelWeek(){
     if(existing)Object.assign(existing,data);
     else state.funnel.weeks.push({id:Date.now().toString(),...data});
   }
+  funnelWeekISO=dateISO; // mostrar la semana recién guardada
   persist();renderFunnel();closeFunnelModal();
 }
 function deleteFunnelWeek(){
