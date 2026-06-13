@@ -3111,7 +3111,11 @@ function authMsg(t){const e=gid('auth-msg');if(e)e.textContent=t||'';}
 function hideGate(){const g=gid('auth-gate');if(g)g.style.display='none';const b=gid('logout-btn');if(b)b.style.display='inline-block';}
 function syncStatus(t){const e=gid('sync-status');if(e)e.textContent=t||'';}
 
-try{ sb = window.supabase.createClient(SUPA_URL, SUPA_KEY); }catch(e){ console.error('Supabase init',e); }
+try{
+  sb = window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+    auth:{ persistSession:true, autoRefreshToken:true, storage:window.localStorage, storageKey:'dojo-auth' }
+  });
+}catch(e){ console.error('Supabase init',e); }
 
 async function authInit(){
   if(!sb){ hideGate(); return; } // sin supabase → modo local
