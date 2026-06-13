@@ -2548,16 +2548,85 @@ function latestFunnelWeek(){
   if(!w.length)return null;
   return [...w].sort((a,b)=>(b.ts||0)-(a.ts||0))[0];
 }
+// ═══════════════════════════
+// CRM (GoHighLevel) → funnel automático
+// ═══════════════════════════
+let crmEvents=[], crmReady=false, crmMode=true;
+async function fetchCrmEvents(){
+  if(!sb) return;
+  try{
+    const {data,error}=await sb.from('crm_events')
+      .select('contact_id,contact_name,stage,changed_at')
+      .order('changed_at',{ascending:true}).limit(8000);
+    if(error){console.error('crm fetch',error);return;}
+    crmEvents=data||[]; crmReady=true; renderFunnel();
+  }catch(e){console.error(e);}
+}
+// Fuente por contacto: se "recuerda" desde la stage de entrada (VSL Registro / Lead Instagram)
+function crmContactSource(){
+  const m={};
+  crmEvents.forEach(e=>{
+    const s=(e.stage||'').toLowerCase();
+    if(s.includes('vsl registro')) m[e.contact_id]='vsl';
+    else if(s.includes('lead instagram')) m[e.contact_id]='instagram';
+  });
+  return m;
+}
+// Cuenta entradas a cada bucket del funnel en una ventana [startTs,endTs)
+function computeCrmWeek(startTs,endTs){
+  const src=crmContactSource();
+  const has=(s,kw)=>(s||'').toLowerCase().includes(kw);
+  const wk={leadVsl:0,leadIg:0,respondidoVsl:0,respondidoIg:0,leadCaliente:0,vslEnviada:0,agendada:0,realizada:0,perma:0};
+  crmEvents.forEach(e=>{
+    const t=new Date(e.changed_at).getTime();
+    if(t<startTs||t>=endTs) return;
+    const s=e.stage||'';
+    if(has(s,'vsl registro')) wk.leadVsl++;
+    else if(has(s,'lead instagram')) wk.leadIg++;
+    if(has(s,'lead caliente')){
+      wk.leadCaliente++;
+      const so=src[e.contact_id];
+      if(so==='vsl') wk.respondidoVsl++; else if(so==='instagram') wk.respondidoIg++;
+    }
+    if(has(s,'vsl mandada')) wk.vslEnviada++;
+    if(has(s,'llamada agendada')) wk.agendada++;
+    if(has(s,'tuvo llamada')||has(s,'miembro perma')||has(s,'cierre caliente')) wk.realizada++;
+    if(has(s,'miembro perma')) wk.perma++;
+  });
+  return wk;
+}
+function toggleCrmMode(){crmMode=!crmMode;renderFunnel();}
 function renderFunnel(){
   const body=gid('funnel-body');if(!body)return;
-  const wk=latestFunnelWeek();
   const lblEl=gid('funnel-week-lbl');
+  let wk, isAuto=false;
+  const useCrm = crmMode && crmReady && crmEvents.length;
+  if(useCrm){
+    const startISO=weekMondayISO();
+    const startTs=new Date(startISO).getTime();
+    wk=computeCrmWeek(startTs,startTs+7*24*60*60*1000);
+    wk.date=isoToDisplay(startISO);
+    isAuto=true;
+  } else {
+    wk=latestFunnelWeek();
+  }
   if(!wk){
-    if(lblEl)lblEl.textContent='';
-    body.innerHTML='<div class="funnel-empty">Sin datos aún — registra tu primera semana con los conteos de GoHighLevel</div>';
+    if(lblEl){
+      lblEl.innerHTML = crmReady&&crmEvents.length
+        ? '<span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="toggleCrmMode()">usar datos CRM</span>'
+        : '';
+    }
+    body.innerHTML='<div class="funnel-empty">Sin datos aún — registra una semana o mueve leads en el CRM</div>';
     return;
   }
-  if(lblEl){lblEl.innerHTML='semana del '+wk.date+' · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="openFunnelWeek(\''+wk.id+'\')">editar</span>';}
+  if(lblEl){
+    if(isAuto){
+      lblEl.innerHTML='🔄 Auto desde CRM · semana del '+wk.date+' · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="toggleCrmMode()">ver manual</span>';
+    } else {
+      const toggle = (crmReady&&crmEvents.length) ? ' · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="toggleCrmMode()">usar CRM</span>' : '';
+      lblEl.innerHTML='semana del '+wk.date+(wk.id?' · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="openFunnelWeek(\''+wk.id+'\')">editar</span>':'')+toggle;
+    }
+  }
   const sumSources=funnelSources(wk);
   const nSources=FUNNEL_STAGES.filter(s=>s.source).length;
   const top=Math.max(sumSources,1);
@@ -3099,6 +3168,7 @@ async function onAuthed(session){
   remoteReady=true;
   hideGate();
   syncStatus('☁ guardado');
+  fetchCrmEvents(); // carga eventos del CRM para el funnel automático
 }
 async function saveRemoteNow(){
   if(!sb||!sbUser) return;
