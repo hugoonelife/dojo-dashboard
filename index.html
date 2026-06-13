@@ -2596,18 +2596,43 @@ function computeCrmWeek(startTs,endTs){
   });
   return wk;
 }
-// ── Selección de semana (una sola vista: manual si existe, si no CRM) ──
-let funnelWeekISO=null; // ISO del lunes seleccionado; null = semana actual
+// ── Selección de vista: 'all' (global) o un lunes ISO concreto ──
+let funnelWeekISO='all'; // 'all' = cómputo global de todo el tiempo
 function setFunnelWeek(iso){funnelWeekISO=iso;renderFunnel();}
 function mondaysList(n){
-  const out=[]; const d=new Date(); const day=d.getDay(); d.setDate(d.getDate()-(day===0?-6:1)+1-1);
-  // recalcular lunes actual de forma fiable
-  const cur=new Date(); const cd=cur.getDay(); cur.setDate(cur.getDate()-(cd===0?6:cd-1));
+  const out=[]; const cur=new Date(); const cd=cur.getDay(); cur.setDate(cur.getDate()-(cd===0?6:cd-1));
   for(let i=0;i<n;i++){const w=new Date(cur);w.setDate(cur.getDate()-7*i);
     out.push(w.getFullYear()+'-'+String(w.getMonth()+1).padStart(2,'0')+'-'+String(w.getDate()).padStart(2,'0'));}
   return out;
 }
-// Datos de una semana: manual si la registraste, si no calculada del CRM
+function mondayOfISO(dateLike){
+  const d=new Date(dateLike); const day=d.getDay();
+  d.setDate(d.getDate()-(day===0?6:day-1));
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+// Cómputo GLOBAL: suma semanas manuales + eventos CRM de semanas no registradas a mano
+function computeGlobalFunnel(){
+  const acc={leadVsl:0,leadIg:0,respondidoVsl:0,respondidoIg:0,leadCaliente:0,vslEnviada:0,agendada:0,realizada:0,perma:0};
+  const manualWeeks=(state.funnel&&state.funnel.weeks)||[];
+  const manualISOs=new Set(manualWeeks.map(w=>w.dateISO));
+  manualWeeks.forEach(w=>{for(const k in acc)acc[k]+=(w[k]||0);});
+  if(crmReady&&crmEvents.length){
+    const src=crmContactSource();
+    const has=(s,kw)=>(s||'').toLowerCase().includes(kw);
+    crmEvents.forEach(e=>{
+      if(manualISOs.has(mondayOfISO(e.changed_at))) return; // semana ya cubierta manual
+      const s=e.stage||'';
+      if(has(s,'vsl registro'))acc.leadVsl++; else if(has(s,'lead instagram'))acc.leadIg++;
+      if(has(s,'lead caliente')){acc.leadCaliente++;const so=src[e.contact_id];if(so==='vsl')acc.respondidoVsl++;else if(so==='instagram')acc.respondidoIg++;}
+      if(has(s,'vsl mandada'))acc.vslEnviada++;
+      if(has(s,'llamada agendada'))acc.agendada++;
+      if(has(s,'tuvo llamada')||has(s,'miembro perma')||has(s,'cierre caliente'))acc.realizada++;
+      if(has(s,'miembro perma'))acc.perma++;
+    });
+  }
+  return acc;
+}
+// Datos de una semana concreta: manual si la registraste, si no del CRM
 function getFunnelWeek(weekISO){
   const manual=(state.funnel&&state.funnel.weeks||[]).find(w=>w.dateISO===weekISO);
   if(manual) return {wk:manual,isAuto:false};
@@ -2624,31 +2649,37 @@ function renderFunnel(){
   const lblEl=gid('funnel-week-lbl');
   const sel=gid('funnel-week-select');
   const curISO=weekMondayISO();
-  if(!funnelWeekISO) funnelWeekISO=curISO;
 
-  // Opciones del selector: últimas 8 semanas + cualquier semana manual antigua
+  // Opciones del selector: Global + últimas 8 semanas + semanas manuales
   const isoSet=new Set(mondaysList(8));
   (state.funnel&&state.funnel.weeks||[]).forEach(w=>{if(w.dateISO)isoSet.add(w.dateISO);});
   const isos=[...isoSet].sort((a,b)=>b.localeCompare(a));
   if(sel){
-    sel.innerHTML=isos.map(iso=>{
+    let opts=`<option value="all" ${funnelWeekISO==='all'?'selected':''}>📊 Global (todo)</option>`;
+    opts+=isos.map(iso=>{
       const manual=(state.funnel&&state.funnel.weeks||[]).find(w=>w.dateISO===iso);
-      const tag=manual?' · manual':(iso===curISO?' · auto (CRM)':'');
+      const tag=manual?' · manual':(iso===curISO?' · auto':'');
       const lbl=(iso===curISO?'Esta semana':'Sem. '+isoToDisplay(iso))+tag;
       return `<option value="${iso}" ${iso===funnelWeekISO?'selected':''}>${lbl}</option>`;
     }).join('');
+    sel.innerHTML=opts;
   }
 
-  const {wk,isAuto}=getFunnelWeek(funnelWeekISO);
-  if(!wk){
+  let wk, isAuto=false, isGlobal=false;
+  if(funnelWeekISO==='all'){ wk=computeGlobalFunnel(); isGlobal=true; }
+  else { const r=getFunnelWeek(funnelWeekISO); wk=r.wk; isAuto=r.isAuto; }
+
+  const empty = !wk || (isGlobal && funnelSources(wk)===0 && (wk.leadCaliente||0)===0);
+  if(empty){
     if(lblEl)lblEl.textContent='';
-    body.innerHTML='<div class="funnel-empty">Sin datos de esta semana — regístrala manual o mueve leads en el CRM</div>';
+    body.innerHTML='<div class="funnel-empty">Sin datos aún — registra semanas manuales o mueve leads en el CRM</div>';
     return;
   }
   if(lblEl){
-    lblEl.innerHTML = isAuto
-      ? '🔄 Auto desde CRM'
-      : '✍ Manual · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="openFunnelWeek(\''+wk.id+'\')">editar</span>';
+    lblEl.innerHTML = isGlobal
+      ? '📊 Acumulado de todo el tiempo'
+      : (isAuto ? '🔄 Auto desde CRM'
+        : '✍ Manual · <span style="color:var(--con);cursor:pointer;text-decoration:underline" onclick="openFunnelWeek(\''+wk.id+'\')">editar</span>');
   }
   const sumSources=funnelSources(wk);
   const nSources=FUNNEL_STAGES.filter(s=>s.source).length;
