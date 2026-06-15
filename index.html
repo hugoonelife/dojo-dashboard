@@ -307,13 +307,13 @@ main{padding:20px 28px 60px;max-width:1600px;margin:0 auto}
 .cap-alert.ok{background:rgba(80,200,120,.08);border:1px solid rgba(80,200,120,.3);color:var(--ok)}
 .cap-streak{display:flex;gap:5px;margin:8px 0;flex-wrap:wrap}
 .cap-week{flex:1;min-width:34px;text-align:center;border-radius:6px;padding:6px 2px;font-size:10px;font-weight:700;border:1px solid var(--border)}
-/* Bifurcación de fuga anclada bajo su pill */
-.funnel-branch{display:flex;flex-direction:column;align-items:flex-start}
-.funnel-leak-arrow{display:flex;align-items:flex-start;gap:4px;margin-top:2px;padding-left:6px}
-.bd-arrow{font-size:20px;color:#e85d3a;line-height:1;transform:translateY(-2px)}
-.bd-box{background:rgba(232,93,58,.08);border:1px dashed rgba(232,93,58,.4);border-radius:8px;padding:4px 9px}
-.bd-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:#e85d3a;font-weight:700;white-space:nowrap}
-.bd-num{font-size:14px;font-weight:800;color:#e85d3a;line-height:1.1}
+/* Bifurcación de fuga: la pill se mantiene en línea; la rama cuelga absoluta debajo */
+.funnel-branch{position:relative}
+.funnel-leak-arrow{position:absolute;top:100%;left:8px;display:flex;align-items:flex-start;gap:3px;margin-top:4px;z-index:1}
+.bd-arrow{font-size:18px;color:#e85d3a;line-height:1}
+.bd-box{background:rgba(232,93,58,.08);border:1px dashed rgba(232,93,58,.4);border-radius:8px;padding:3px 8px;white-space:nowrap}
+.bd-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:#e85d3a;font-weight:700}
+.bd-num{font-size:13px;font-weight:800;color:#e85d3a;line-height:1.1}
 .bd-pct{font-size:10px;font-weight:600;color:var(--dim)}
 /* Pagado / por pagar (herramientas) */
 .pay-chip{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;cursor:pointer;margin-left:6px;white-space:nowrap}
@@ -331,7 +331,7 @@ main{padding:20px 28px 60px;max-width:1600px;margin:0 auto}
 .funnel-empty{text-align:center;color:var(--dim);font-size:12px;padding:20px}
 .funnel-bottleneck{background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.3);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px}
 .funnel-bottleneck b{color:#e85d3a}
-.funnel-flow{display:flex;align-items:flex-start;flex-wrap:wrap;gap:5px}
+.funnel-flow{display:flex;align-items:flex-start;flex-wrap:wrap;gap:5px;margin-bottom:62px}
 .funnel-pill{background:var(--s2);border:1px solid var(--border);border-radius:7px;padding:7px 11px;min-width:92px}
 .funnel-pill.total{background:var(--s3);border-color:var(--muted)}
 .funnel-pill.bottleneck{border-color:#e85d3a;background:rgba(232,93,58,.06)}
