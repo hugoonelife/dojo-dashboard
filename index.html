@@ -473,6 +473,7 @@ tr:last-child td{border-bottom:none}
     <button class="tab" onclick="switchTab('contabilidad')">Contabilidad</button>
     <button class="tab" onclick="switchTab('plan')">El Plan</button>
     <button class="tab" onclick="switchTab('graficas')">Gráficas</button>
+    <button class="tab" onclick="switchTab('equipo')" id="tab-btn-equipo" style="display:none">Equipo</button>
   </div>
   <div style="display:flex;align-items:center;gap:12px">
     <span id="sync-status" style="font-size:10px;color:var(--dim)"></span>
@@ -895,6 +896,36 @@ tr:last-child td{border-bottom:none}
     <div class="grafica-card">
       <div class="grafica-lbl">Llamadas agendadas por mes</div>
       <canvas id="chart-calls"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- ═══ EQUIPO / ACCESOS ═══ -->
+<div class="panel" id="tab-equipo">
+  <div class="met-hd">
+    <h2>Equipo · accesos</h2>
+  </div>
+  <div class="kpi-section" style="margin-bottom:18px">
+    <div class="kpi-hd"><h3>Autorizar un email</h3></div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 12px">Solo los emails de esta lista pueden entrar. El usuario debe <b>registrarse</b> con ese email; tú lo autorizas aquí.</p>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+      <div class="field" style="flex:2;min-width:220px"><label>Email</label><input type="email" id="team-email" placeholder="persona@gmail.com"></div>
+      <div class="field" style="flex:1;min-width:140px"><label>Rol</label>
+        <select id="team-role" style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:inherit">
+          <option value="employee">Empleado (solo Métricas)</option>
+          <option value="owner">Owner (acceso total)</option>
+        </select>
+      </div>
+      <button class="btn btn-p" style="padding:9px 18px" onclick="addTeamMember()">Autorizar</button>
+    </div>
+  </div>
+  <div class="kpi-section">
+    <div class="kpi-hd"><h3>Personas autorizadas</h3></div>
+    <div class="calls-table-wrap">
+      <table class="calls-table">
+        <thead><tr><th>Email</th><th>Rol</th><th>Desde</th><th></th></tr></thead>
+        <tbody id="team-tbody"></tbody>
+      </table>
     </div>
   </div>
 </div>
@@ -1394,11 +1425,12 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function gid(id){return document.getElementById(id)}
 function txt(id,v){const e=gid(id);if(e)e.textContent=v}
 function switchTab(n){
-  const tabs=['dashboard','metricas','contabilidad','plan','graficas'];
+  const tabs=['dashboard','metricas','contabilidad','plan','graficas','equipo'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on',tabs[i]===n));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   gid('tab-'+n).classList.add('on');
   if(n==='graficas')setTimeout(renderGraficas,50);
+  if(n==='equipo')renderTeam();
 }
 
 // ═══════════════════════════
@@ -3778,8 +3810,21 @@ async function authLogout(){
   if(sb) await sb.auth.signOut();
   location.reload();
 }
-// ── Rol del usuario: ¿es empleado? ¿de qué owner? ──
-let userRole='owner', ownerId=null;
+// ── Rol del usuario: ALLOWLIST. Solo emails en app_roles entran. ──
+let userRole=null, ownerId=null, authorized=false;
+// Pantalla de "no autorizado": email logueado pero no está en la allowlist
+function showUnauthorized(){
+  syncStatus('');
+  const email=(sbUser&&sbUser.email)||'';
+  document.body.innerHTML=`<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0c0d10;color:#e8e8ea;font-family:system-ui,sans-serif;text-align:center;padding:20px">
+    <div style="max-width:420px">
+      <div style="font-size:48px;margin-bottom:16px">🔒</div>
+      <h2 style="margin:0 0 10px">Acceso no autorizado</h2>
+      <p style="color:#9a9aa2;font-size:14px;line-height:1.5">La cuenta <b style="color:#e8e8ea">${email}</b> no tiene acceso a este panel.<br>Pide al administrador que te autorice.</p>
+      <button onclick="authLogout()" style="margin-top:18px;background:#1a1b1f;border:1px solid #2a2b30;color:#e8e8ea;padding:9px 20px;border-radius:8px;cursor:pointer;font-size:13px">Cerrar sesión</button>
+    </div>
+  </div>`;
+}
 // Vista limitada para empleados: solo Métricas, sin edición (ocultación por JS, NO seguridad real)
 function applyEmployeeView(){
   // Oculta los botones de pestaña que no sean Métricas
@@ -3806,19 +3851,68 @@ function applyEmployeeView(){
     if(h2)h2.innerHTML='Métricas <span style="font-size:11px;background:rgba(120,140,255,.15);color:#8aa0ff;padding:2px 10px;border-radius:20px;margin-left:8px">👤 modo empleado</span>';
   }
 }
+// ── Gestión de equipo (solo owner) ──
+async function renderTeam(){
+  const tb=gid('team-tbody');if(!tb)return;
+  tb.innerHTML='<tr><td colspan="4" style="color:var(--dim)">Cargando…</td></tr>';
+  try{
+    const {data,error}=await sb.from('app_roles').select('email,role,created_at').order('created_at',{ascending:true});
+    if(error){tb.innerHTML='<tr><td colspan="4" style="color:#e85d3a">Error: '+esc(error.message)+'</td></tr>';return;}
+    if(!data||!data.length){tb.innerHTML='<tr><td colspan="4" style="color:var(--dim)">Nadie autorizado aún</td></tr>';return;}
+    tb.innerHTML='';
+    data.forEach(r=>{
+      const me=(r.email||'').toLowerCase()===((sbUser&&sbUser.email)||'').toLowerCase();
+      const tr=document.createElement('tr');
+      const roleTag=r.role==='owner'?'<span style="color:var(--gold);font-weight:700">Owner</span>':'<span style="color:#8aa0ff">Empleado</span>';
+      tr.innerHTML=`<td style="font-weight:600">${esc(r.email)}${me?' <span style="font-size:9px;color:var(--dim)">(tú)</span>':''}</td>
+        <td>${roleTag}</td>
+        <td style="color:var(--muted);font-size:11px">${esc((r.created_at||'').slice(0,10))}</td>
+        <td></td>`;
+      if(!me){ // no te dejes borrarte a ti mismo
+        const del=document.createElement('button');del.className='call-del';del.textContent='✕';del.title='Quitar acceso';
+        del.addEventListener('click',()=>removeTeamMember(r.email));
+        tr.lastElementChild.appendChild(del);
+      }
+      tb.appendChild(tr);
+    });
+  }catch(e){tb.innerHTML='<tr><td colspan="4" style="color:#e85d3a">Error</td></tr>';}
+}
+async function addTeamMember(){
+  const email=(gid('team-email').value||'').trim().toLowerCase();
+  const role=gid('team-role').value;
+  if(!email||!email.includes('@')){alert('Pon un email válido.');return;}
+  try{
+    const {error}=await sb.from('app_roles').upsert({email,role,owner_id:sbUser.id},{onConflict:'email'});
+    if(error){alert('No se pudo autorizar: '+error.message);return;}
+    gid('team-email').value='';
+    renderTeam();
+  }catch(e){alert('Error: '+e.message);}
+}
+async function removeTeamMember(email){
+  if(!confirm('¿Quitar el acceso a '+email+'?'))return;
+  try{
+    const {error}=await sb.from('app_roles').delete().eq('email',email);
+    if(error){alert('No se pudo quitar: '+error.message);return;}
+    renderTeam();
+  }catch(e){alert('Error: '+e.message);}
+}
 async function detectRole(){
+  authorized=false; userRole=null; ownerId=null;
   try{
     const email=(sbUser.email||'').toLowerCase();
     const {data,error}=await sb.from('app_roles').select('owner_id,role').eq('email',email).maybeSingle();
     if(error){console.error('role',error);return;}
-    if(data&&data.role==='employee'){ userRole='employee'; ownerId=data.owner_id; }
+    if(!data){ authorized=false; return; }      // email NO autorizado → fuera
+    authorized=true;
+    if(data.role==='employee'){ userRole='employee'; ownerId=data.owner_id; }
     else { userRole='owner'; ownerId=sbUser.id; }
-  }catch(e){console.error(e);userRole='owner';ownerId=sbUser.id;}
+  }catch(e){console.error(e);}
 }
 async function onAuthed(session){
   sbUser=session.user;
   syncStatus('☁ sincronizando…');
   await detectRole();
+  if(!authorized){ return showUnauthorized(); }   // email no está en la allowlist
   if(userRole==='employee'){ return onAuthedEmployee(); }
   try{
     const {data,error}=await sb.from('app_state').select('data').eq('user_id',sbUser.id).maybeSingle();
@@ -3842,6 +3936,8 @@ async function onAuthed(session){
   remoteReady=true;
   hideGate();
   syncStatus('☁ guardado');
+  // Owner: mostrar la pestaña Equipo para gestionar accesos
+  const teamBtn=gid('tab-btn-equipo'); if(teamBtn)teamBtn.style.display='';
   fetchCrmEvents(); // carga eventos del CRM para el funnel automático
   fetchMercuryTx(); // carga movimientos bancarios de Mercury
   fetchAgendasManual(); // agendas metidas por empleados
