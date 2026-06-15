@@ -307,6 +307,25 @@ main{padding:20px 28px 60px;max-width:1600px;margin:0 auto}
 .cap-alert.ok{background:rgba(80,200,120,.08);border:1px solid rgba(80,200,120,.3);color:var(--ok)}
 .cap-streak{display:flex;gap:5px;margin:8px 0;flex-wrap:wrap}
 .cap-week{flex:1;min-width:34px;text-align:center;border-radius:6px;padding:6px 2px;font-size:10px;font-weight:700;border:1px solid var(--border)}
+/* Ramas de fuga del funnel */
+.funnel-leaks{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
+.funnel-leak{flex:1;min-width:180px;background:rgba(232,93,58,.06);border:1px dashed rgba(232,93,58,.35);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px}
+.funnel-leak .arr{font-size:18px;color:#e85d3a;line-height:1}
+.funnel-leak .n{font-size:20px;font-weight:800;color:#e85d3a}
+.funnel-leak .meta{font-size:11px;color:var(--muted)}
+.funnel-leak .pct{margin-left:auto;font-size:15px;font-weight:800;color:#e85d3a}
+/* Pagado / por pagar (herramientas) */
+.pay-chip{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;cursor:pointer;margin-left:6px;white-space:nowrap}
+.pay-chip.paid{background:rgba(80,200,120,.15);color:var(--ok);border:1px solid rgba(80,200,120,.4)}
+.pay-chip.due{background:rgba(232,93,58,.12);color:#e85d3a;border:1px solid rgba(232,93,58,.4)}
+.pay-card{flex:1;border-radius:10px;padding:12px 16px}
+.pay-card.paid{background:rgba(80,200,120,.08);border:1px solid rgba(80,200,120,.3)}
+.pay-card.due{background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.3)}
+.pay-lbl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px}
+.pay-card.paid .pay-lbl{color:var(--ok)}.pay-card.due .pay-lbl{color:#e85d3a}
+.pay-val{font-size:22px;font-weight:800}
+.pay-card.paid .pay-val{color:var(--ok)}.pay-card.due .pay-val{color:#e85d3a}
+.pay-sub{font-size:10px;color:var(--dim);margin-top:2px}
 /* FUNNEL (pills tipo KPI + barritas) */
 .funnel-empty{text-align:center;color:var(--dim);font-size:12px;padding:20px}
 .funnel-bottleneck{background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.3);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px}
@@ -814,6 +833,7 @@ tr:last-child td{border-bottom:none}
       <h3>Herramientas · suscripciones recurrentes</h3>
       <button class="btn btn-p" style="font-size:11px;padding:5px 12px" onclick="openToolModal()">+ Añadir herramienta</button>
     </div>
+    <div id="tools-paystatus" style="display:flex;gap:10px;margin-bottom:14px"></div>
     <div class="calls-table-wrap">
       <table class="calls-table">
         <thead><tr><th>Herramienta</th><th>Info</th><th>€/mes</th><th>Día cobro</th><th></th></tr></thead>
@@ -2190,13 +2210,19 @@ function renderTools(){
       const tr=document.createElement('tr');tr.style.cursor='pointer';
       const eur=toolMonthlyEur(t);
       const usdTag=t.currency==='USD'?` <span style="font-size:9px;color:var(--dim)">($${t.amount})</span>`:'';
+      const paid=!!t.paid;
+      // chip de estado: verde pagado / rojo por pagar (clic alterna)
+      const chip=`<span class="pay-chip ${paid?'paid':'due'}" title="Clic para alternar pagado/por pagar">${paid?'✓ pagado':'● por pagar'}</span>`;
       tr.innerHTML=`
         <td style="font-weight:600">${esc(t.name)}</td>
         <td style="color:var(--muted)">${esc(t.info)||'—'}</td>
         <td style="color:#e85d3a;font-weight:700">€${fmt(eur.toFixed(2))}${usdTag}</td>
-        <td>${t.day?('día '+t.day):'—'}</td>
+        <td>${t.day?('día '+t.day):'—'} ${chip}</td>
         <td></td>`;
-      tr.addEventListener('click',e=>{if(e.target.closest('.tool-del'))return;openToolModal(t.id);});
+      // clic en el chip alterna el estado de pago sin abrir el modal
+      const chipEl=tr.querySelector('.pay-chip');
+      if(chipEl)chipEl.addEventListener('click',e=>{e.stopPropagation();t.paid=!t.paid;persist();renderTools();});
+      tr.addEventListener('click',e=>{if(e.target.closest('.tool-del')||e.target.closest('.pay-chip'))return;openToolModal(t.id);});
       const del=document.createElement('button');del.className='tool-del call-del';del.textContent='✕';del.title='Eliminar';
       del.addEventListener('click',e=>{e.stopPropagation();
         if(!confirm('¿Eliminar esta herramienta?'))return;
@@ -2205,6 +2231,15 @@ function renderTools(){
       tr.lastElementChild.appendChild(del);
       tb.appendChild(tr);
     });
+  }
+  // Resumen pagado / por pagar (lo que necesitas tener en cuenta este mes)
+  let paidSum=0, dueSum=0;
+  (state.tools||[]).forEach(t=>{const e=toolMonthlyEur(t);if(t.paid)paidSum+=e;else dueSum+=e;});
+  const sum=gid('tools-paystatus');
+  if(sum){
+    sum.innerHTML=`
+      <div class="pay-card paid"><div class="pay-lbl">✓ Ya pagado · mes</div><div class="pay-val">€${fmt(paidSum.toFixed(2))}</div></div>
+      <div class="pay-card due"><div class="pay-lbl">● Por pagar · mes</div><div class="pay-val">€${fmt(dueSum.toFixed(2))}</div><div class="pay-sub">esto te hace falta en cuenta</div></div>`;
   }
   const tot=gid('tools-total');
   if(tot)tot.textContent='Total herramientas: €'+fmt(toolsTotal().toFixed(2))+' / mes';
@@ -2652,7 +2687,7 @@ function crmContactSource(){
 function computeCrmWeek(startTs,endTs){
   const src=crmContactSource();
   const has=(s,kw)=>(s||'').toLowerCase().includes(kw);
-  const wk={leadVsl:0,leadIg:0,respondidoVsl:0,respondidoIg:0,leadCaliente:0,vslEnviada:0,agendada:0,realizada:0,perma:0};
+  const wk={leadVsl:0,leadIg:0,respondidoVsl:0,respondidoIg:0,leadCaliente:0,vslEnviada:0,agendada:0,realizada:0,perma:0,noCualif:0,noShow:0};
   crmEvents.forEach(e=>{
     const t=new Date(e.changed_at).getTime();
     if(t<startTs||t>=endTs) return;
@@ -2668,6 +2703,8 @@ function computeCrmWeek(startTs,endTs){
     if(has(s,'llamada agendada')) wk.agendada++;
     if(has(s,'tuvo llamada')||has(s,'miembro perma')||has(s,'cierre caliente')) wk.realizada++;
     if(has(s,'miembro perma')) wk.perma++;
+    if(has(s,'no cualificado')) wk.noCualif++;       // descalificados (rama de fuga)
+    if(has(s,'no se ha presentado')) wk.noShow++;    // no-show (rama de fuga)
   });
   return wk;
 }
@@ -2687,7 +2724,7 @@ function mondayOfISO(dateLike){
 }
 // Cómputo GLOBAL: suma semanas manuales + eventos CRM de semanas no registradas a mano
 function computeGlobalFunnel(){
-  const acc={leadVsl:0,leadIg:0,respondidoVsl:0,respondidoIg:0,leadCaliente:0,vslEnviada:0,agendada:0,realizada:0,perma:0};
+  const acc={leadVsl:0,leadIg:0,respondidoVsl:0,respondidoIg:0,leadCaliente:0,vslEnviada:0,agendada:0,realizada:0,perma:0,noCualif:0,noShow:0};
   const manualWeeks=(state.funnel&&state.funnel.weeks)||[];
   const manualISOs=new Set(manualWeeks.map(w=>w.dateISO));
   manualWeeks.forEach(w=>{for(const k in acc)acc[k]+=(w[k]||0);});
@@ -2703,6 +2740,8 @@ function computeGlobalFunnel(){
       if(has(s,'llamada agendada'))acc.agendada++;
       if(has(s,'tuvo llamada')||has(s,'miembro perma')||has(s,'cierre caliente'))acc.realizada++;
       if(has(s,'miembro perma'))acc.perma++;
+      if(has(s,'no cualificado'))acc.noCualif++;
+      if(has(s,'no se ha presentado'))acc.noShow++;
     });
   }
   return acc;
@@ -2869,10 +2908,10 @@ function renderCallCap(){
 // ═══════════════════════════
 // KPIs MENSUALES (todo editable a mano)
 // ═══════════════════════════
-// Definición de campos: clave, etiqueta, icono, color
+// Definición de campos. auto=true → se calcula del tracker de llamadas (override manual posible).
 const MONTH_KPI_FIELDS=[
-  {k:'agendadas', lbl:'Llamadas agendadas', icon:'📞', color:'var(--gold)'},
-  {k:'cierres',   lbl:'Cierres',            icon:'🤝', color:'var(--ok)'},
+  {k:'agendadas', lbl:'Llamadas agendadas', icon:'📞', color:'var(--gold)', auto:true},
+  {k:'cierres',   lbl:'Cierres',            icon:'🤝', color:'var(--ok)',   auto:true},
   {k:'visitas',   lbl:'Visitas (web/perfil)',icon:'👁', color:'var(--con)'},
   {k:'reels',     lbl:'Reels publicados',   icon:'🎬', color:'#d07ed0'},
   {k:'ytVideos',  lbl:'Vídeos YouTube',     icon:'▶️', color:'#e85d3a'},
@@ -2880,22 +2919,53 @@ const MONTH_KPI_FIELDS=[
 ];
 let monthKpiSel=null; // id del mes mostrado
 function setMonthKpi(id){monthKpiSel=id;renderMonthKpi();}
+// Cuenta llamadas y cierres del tracker cuyo dateISO cae en [startISO, endISO]
+function monthKpiAuto(m){
+  const res={agendadas:0,cierres:0};
+  if(!m.startISO||!m.endISO)return res;
+  (state.salesCalls||[]).forEach(c=>{
+    const d=c.dateISO||(c.ts?new Date(c.ts).toISOString().slice(0,10):null);
+    if(!d)return;
+    if(d>=m.startISO&&d<=m.endISO){ res.agendadas++; if(c.closed)res.cierres++; }
+  });
+  return res;
+}
+// Valor mostrado de un campo: si hay override manual (no null) manda; si es 'auto' calcula del tracker
+function monthKpiVal(m,f){
+  if(f.auto){
+    const ov=m[f.k+'_manual']; // override explícito
+    if(ov!=null)return {val:ov,manual:true};
+    return {val:monthKpiAuto(m)[f.k],manual:false};
+  }
+  return {val:m[f.k]!=null?m[f.k]:0,manual:false};
+}
 function newMonthKpi(){
-  const lbl=prompt('Etiqueta del nuevo periodo (ej. "15 jun – 15 jul")');
+  const lbl=prompt('Etiqueta del periodo (ej. "15 jun – 15 jul")');
   if(!lbl)return;
+  const s=prompt('Fecha inicio (AAAA-MM-DD) — para contar llamadas del tracker:', '2026-06-15');
+  if(s===null)return;
+  const e=prompt('Fecha fin (AAAA-MM-DD):', '2026-07-15');
+  if(e===null)return;
   if(!state.monthlyKpis)state.monthlyKpis=[];
-  const m={id:Date.now().toString(),label:lbl.trim()};
-  MONTH_KPI_FIELDS.forEach(f=>m[f.k]=0);
-  state.monthlyKpis.unshift(m); // el más nuevo primero
+  const m={id:Date.now().toString(),label:lbl.trim(),startISO:s.trim(),endISO:e.trim(),visitas:0,reels:0,ytVideos:0,ytViews:0};
+  state.monthlyKpis.unshift(m);
   monthKpiSel=m.id;
   persist();renderMonthKpi();
 }
 function editMonthKpiField(id,key){
   const m=(state.monthlyKpis||[]).find(x=>x.id===id);if(!m)return;
   const fld=MONTH_KPI_FIELDS.find(f=>f.k===key);
-  const v=prompt(fld.lbl+':', m[key]!=null?m[key]:0);
-  if(v===null)return;
-  m[key]=parseFloat(v)||0;
+  if(fld.auto){
+    // Campo auto: pedimos override manual; vacío = volver a auto
+    const cur=m[key+'_manual'];
+    const v=prompt(fld.lbl+' — escribe un nº para fijarlo a mano, o deja vacío para que se cuente solo del tracker:', cur!=null?cur:'');
+    if(v===null)return;
+    if(v.trim()==='') delete m[key+'_manual']; else m[key+'_manual']=parseFloat(v)||0;
+  }else{
+    const v=prompt(fld.lbl+':', m[key]!=null?m[key]:0);
+    if(v===null)return;
+    m[key]=parseFloat(v)||0;
+  }
   persist();renderMonthKpi();
 }
 function delMonthKpi(id){
@@ -2919,15 +2989,19 @@ function renderMonthKpi(){
   if(sel)sel.innerHTML=list.map(m=>`<option value="${m.id}" ${m.id===monthKpiSel?'selected':''}>${esc(m.label)}</option>`).join('');
   const m=list.find(x=>x.id===monthKpiSel);
   if(rangeEl)rangeEl.textContent=m.label;
-  // ratio cierre auto si hay agendadas
-  const closeRate=m.agendadas>0?(m.cierres/m.agendadas*100):0;
+  const ag=monthKpiVal(m,MONTH_KPI_FIELDS[0]).val;
+  const ci=monthKpiVal(m,MONTH_KPI_FIELDS[1]).val;
+  const closeRate=ag>0?(ci/ag*100):0;
   grid.innerHTML=MONTH_KPI_FIELDS.map(f=>{
-    const val=m[f.k]!=null?m[f.k]:0;
-    const sub=f.k==='cierres'&&m.agendadas>0?`${closeRate.toFixed(0)}% de cierre`:'clic para editar';
+    const {val,manual}=monthKpiVal(m,f);
+    let sub;
+    if(f.k==='cierres'&&ag>0) sub=`${closeRate.toFixed(0)}% de cierre`;
+    else if(f.auto) sub=manual?'✍ fijado a mano':'🔄 auto del tracker';
+    else sub='clic para editar';
     return `<div class="met-card" style="cursor:pointer" onclick="editMonthKpiField('${m.id}','${f.k}')">
       <div class="met-tag">${f.icon} ${f.lbl}</div>
       <div class="met-val b" style="color:${f.color}">${fmt(val)}</div>
-      <div class="met-sub">${sub}</div>
+      <div class="met-sub" style="${manual?'color:var(--gold)':''}">${sub}</div>
     </div>`;
   }).join('') + `<div class="met-card" style="display:flex;align-items:center;justify-content:center;cursor:pointer;border-style:dashed" onclick="delMonthKpi('${m.id}')">
       <span style="color:#e85d3a;font-size:12px;font-weight:700">🗑 Borrar este mes</span></div>`;
@@ -3043,6 +3117,32 @@ function renderFunnel(){
     }
   });
   html+='</div>';
+
+  // ── Ramas de fuga: no-cualificado y no-show (se bifurcan del flujo) ──
+  const noCualif=wk.noCualif||0, noShow=wk.noShow||0;
+  if(noCualif>0||noShow>0){
+    const pctCualif=sumSources>0?(noCualif/sumSources*100):0;   // sobre el total de leads
+    const agend=wk.agendada||0;
+    const pctShow=agend>0?(noShow/agend*100):0;                  // sobre los que agendaron
+    let leaks='<div class="funnel-leaks">';
+    if(noCualif>0){
+      leaks+=`<div class="funnel-leak" title="Leads que se marcaron como NO cualificados">
+        <span class="arr">↘</span>
+        <div><div class="n">${fmt(noCualif)}</div><div class="meta">No cualificados</div></div>
+        <span class="pct">${pctCualif.toFixed(0)}%<span style="display:block;font-size:9px;color:var(--dim);font-weight:600">de los leads</span></span>
+      </div>`;
+    }
+    if(noShow>0){
+      leaks+=`<div class="funnel-leak" title="Agendaron pero no se presentaron a la llamada">
+        <span class="arr">↘</span>
+        <div><div class="n">${fmt(noShow)}</div><div class="meta">No se presentaron</div></div>
+        <span class="pct">${pctShow.toFixed(0)}%<span style="display:block;font-size:9px;color:var(--dim);font-weight:600">de las agendas</span></span>
+      </div>`;
+    }
+    leaks+='</div>';
+    html+=leaks;
+  }
+
   body.innerHTML=html;
 }
 const FN_EXTRA=['respondidoIg','respondidoVsl'];
@@ -3384,12 +3484,19 @@ if(!state.cap)state.cap={
 // Cap de llamadas de venta (cuándo meter closer)
 if(!state.callCap)state.callCap={min:15,max:18,streak:4};
 // KPIs mensuales — seed del mes 15 may–15 jun (una sola vez)
+// Nota: agendadas/cierres son overrides manuales (este mes no estaba en el tracker).
 if(!state.monthlyKpis){
   state.monthlyKpis=[{
     id:'mk-may-jun-2026', label:'15 may – 15 jun 2026',
-    agendadas:18, cierres:4, visitas:0, reels:0, ytVideos:0, ytViews:0
+    startISO:'2026-05-15', endISO:'2026-06-15',
+    agendadas_manual:18, cierres_manual:4, visitas:0, reels:0, ytVideos:0, ytViews:0
   }];
 }
+// Migración: meses guardados antes con agendadas/cierres planos → pasarlos a override manual
+(state.monthlyKpis||[]).forEach(m=>{
+  if(m.agendadas!=null&&m.agendadas_manual==null){m.agendadas_manual=m.agendadas;delete m.agendadas;}
+  if(m.cierres!=null&&m.cierres_manual==null){m.cierres_manual=m.cierres;delete m.cierres;}
+});
 // KPI multi-paso Leads → Agendas (añadir si no existe)
 if(state.kpis&&!state.kpis.find(k=>k.id==='leadsAgendas')){
   state.kpis.push({id:'leadsAgendas',icon:'🎯',label:'LEADS → AGENDAS',chain:[
