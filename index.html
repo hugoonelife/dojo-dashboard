@@ -676,6 +676,9 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  <!-- Agendas registradas por empleados (vacío si no hay) -->
+  <div id="agendas-box"></div>
+
   <!-- Funnel de captación -->
   <div class="kpi-section" style="margin-bottom:18px">
     <div class="kpi-hd">
@@ -1940,7 +1943,11 @@ function renderMetrics(){
   txt('mv-perma-sub','ventas cerradas · '+Math.floor(permaVentas/5)+' tandas');
   const active=getActiveMilestone('permashift');
   const need=active?callsNeededForTandas(active.tgt/5):0;
-  txt('mv-calls',f(m.calls));txt('mv-calls-sub','necesarias: '+need+' (para '+((active&&active.label)||'meta actual')+')');
+  // Total agendadas = las del estado + las que metieron los empleados este mes
+  const agExtra=(typeof agendasManualThisMonth==='function')?agendasManualThisMonth():0;
+  const callsTotal=(m.calls||0)+agExtra;
+  txt('mv-calls',f(callsTotal));
+  txt('mv-calls-sub',(agExtra?('+'+agExtra+' de empleados · '):'')+'necesarias: '+need);
   txt('mv-yt',f(m.yt));txt('mv-ig',f(m.ig));
   const inc=calcIncomeTotal(),exp=calcExpenseTotal(),net=inc-exp;
   const rv=gid('mv-revenue');if(rv)rv.textContent='€'+fmt(net);
@@ -2177,10 +2184,14 @@ function toggleRevLog(){
 // ═══════════════════════════
 function toolMonthlyEur(t){return t.currency==='USD'?(t.amount||0)*getUsdEur():(t.amount||0);}
 function toolsTotal(){return(state.tools||[]).reduce((s,t)=>s+toolMonthlyEur(t),0);}
-// Clave del mes actual (AAAA-MM) para el reseteo mensual del estado "pagado"
+// Clave del mes actual (AAAA-MM)
 function currentMonthKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
-// Una herramienta está "pagada" solo si se marcó EN el mes en curso (si no, vuelve a por pagar)
-function toolIsPaid(t){return t.paidMonth===currentMonthKey();}
+// "Pagado" se decide SOLO por la fecha: si ya pasó (o es) el día de cobro de este mes → cobrado.
+// Si la herramienta no tiene día de cobro, cae a marcado manual de este mes (compat).
+function toolIsPaid(t){
+  if(t.day){ return new Date().getDate() >= t.day; }
+  return t.paidMonth===currentMonthKey();
+}
 function openToolModal(id){
   gid('tool-id').value='';gid('tool-name').value='';gid('tool-info').value='';
   gid('tool-amount').value='';gid('tool-currency').value='EUR';gid('tool-day').value='';
@@ -2232,24 +2243,28 @@ function renderTools(){
       const tr=document.createElement('tr');tr.style.cursor='pointer';
       const eur=toolMonthlyEur(t);
       const usdTag=t.currency==='USD'?` <span style="font-size:9px;color:var(--dim)">($${t.amount})</span>`:'';
-      const paid=toolIsPaid(t); // pagado solo si se marcó este mes (se resetea cada mes)
-      // chip de estado: verde pagado / rojo por pagar (clic alterna)
-      const chip=`<span class="pay-chip ${paid?'paid':'due'}" title="Clic para alternar pagado/por pagar (se reinicia cada mes)">${paid?'✓ pagado':'● por pagar'}</span>`;
+      const paid=toolIsPaid(t);
+      const auto=!!t.day; // si tiene día de cobro, el estado es automático por fecha
+      const chipTitle=auto
+        ? (paid?'Ya pasó el día '+t.day+' → cobrado este mes':'Aún no llega el día '+t.day+' → pendiente')
+        : 'Sin día de cobro — clic para alternar manualmente';
+      const chip=`<span class="pay-chip ${paid?'paid':'due'}${auto?'':' clickable'}" style="${auto?'cursor:default':''}" title="${chipTitle}">${paid?'✓ pagado':'● por pagar'}</span>`;
       tr.innerHTML=`
         <td style="font-weight:600">${esc(t.name)}</td>
         <td style="color:var(--muted)">${esc(t.info)||'—'}</td>
         <td style="color:#e85d3a;font-weight:700">€${fmt(eur.toFixed(2))}${usdTag}</td>
         <td>${t.day?('día '+t.day):'—'} ${chip}</td>
         <td></td>`;
-      // clic en el chip alterna el estado de pago sin abrir el modal
-      const chipEl=tr.querySelector('.pay-chip');
-      if(chipEl)chipEl.addEventListener('click',e=>{
-        e.stopPropagation();
-        // marcar pagado = guardar el mes actual; desmarcar = borrar
-        t.paidMonth=toolIsPaid(t)?null:currentMonthKey();
-        delete t.paid; // limpiamos el flag viejo
-        persist();renderTools();
-      });
+      // Solo las herramientas SIN día de cobro permiten alternar a mano
+      if(!auto){
+        const chipEl=tr.querySelector('.pay-chip');
+        if(chipEl)chipEl.addEventListener('click',e=>{
+          e.stopPropagation();
+          t.paidMonth=toolIsPaid(t)?null:currentMonthKey();
+          delete t.paid;
+          persist();renderTools();
+        });
+      }
       tr.addEventListener('click',e=>{if(e.target.closest('.tool-del')||e.target.closest('.pay-chip'))return;openToolModal(t.id);});
       const del=document.createElement('button');del.className='tool-del call-del';del.textContent='✕';del.title='Eliminar';
       del.addEventListener('click',e=>{e.stopPropagation();
@@ -2670,8 +2685,8 @@ function closeDeliveryModal(){gid('modal-delivery').classList.remove('on');}
 const FUNNEL_STAGES=[
   {key:'leadIg',      label:'Lead Instagram', desc:'entró por IG',        source:true, match:'lead instagram'},
   {key:'leadVsl',     label:'Lead VSL',       desc:'entró por VSL/reels', source:true, match:'vsl registro'},
-  {key:'leadYt',      label:'Lead YouTube',   desc:'entró por YouTube',   source:true, match:'lead youtube'},
-  {key:'leadStories', label:'Lead Stories',   desc:'entró por Stories',   source:true, match:'lead stories'},
+  {key:'leadYt',      label:'YouTube',        desc:'entró por YouTube',   source:true, match:'lead youtube'},
+  {key:'leadStories', label:'Stories',        desc:'entró por Stories',   source:true, match:'lead stories'},
   {key:'leadCaliente',label:'Respondió',      desc:'abrió conversación',  conv:'% respuesta', bench:60},
   {key:'vslEnviada',  label:'VSL mandada',    desc:'',                    conv:'% envío VSL', bench:70},
   {key:'agendada',    label:'Agendada',       desc:'reservó llamada',     conv:'% agenda',    bench:30},
@@ -2759,6 +2774,61 @@ function mercuryToEntry(t){
 }
 // Todas las transacciones de Mercury como entradas
 function mercuryEntries(){return (mercuryTx||[]).map(mercuryToEntry);}
+
+// ── Agendas manuales (las meten los empleados, suman al contador de agendadas) ──
+let agendasManual=[];
+async function fetchAgendasManual(){
+  if(!sb) return;
+  const oid=ownerId||(sbUser&&sbUser.id);
+  if(!oid) return;
+  try{
+    const {data,error}=await sb.from('agendas_manual')
+      .select('id,lead_name,note,date_iso,created_by,created_at')
+      .eq('owner_id',oid).order('date_iso',{ascending:false}).limit(2000);
+    if(error){console.error('agendas fetch',error);return;}
+    agendasManual=data||[];
+    renderAgendasBox(); renderMetrics();
+  }catch(e){console.error(e);}
+}
+// Cuántas agendas manuales hay en el mes en curso (para sumar al KPI)
+function agendasManualThisMonth(){
+  const mk=currentMonthKey(); // 'AAAA-MM'
+  return (agendasManual||[]).filter(a=>(a.date_iso||'').slice(0,7)===mk).length;
+}
+async function openAgendaModal(){
+  const lead=prompt('Nombre del lead / cliente:');
+  if(lead===null)return;
+  const date=prompt('Fecha de la llamada (AAAA-MM-DD):', todayISO());
+  if(date===null)return;
+  const note=prompt('Nota (opcional):','')||'';
+  const oid=ownerId||(sbUser&&sbUser.id);
+  try{
+    const {error}=await sb.from('agendas_manual').insert({
+      owner_id:oid, created_by:(sbUser&&sbUser.email)||'', lead_name:lead.trim(), note:note.trim(), date_iso:date.trim()
+    });
+    if(error){alert('No se pudo guardar la agenda: '+error.message);return;}
+    await fetchAgendasManual();
+    alert('✅ Llamada agendada registrada.');
+  }catch(e){alert('Error: '+e.message);}
+}
+// Caja con la lista de agendas (visible en Métricas)
+function renderAgendasBox(){
+  const box=gid('agendas-box');if(!box)return;
+  const list=agendasManual||[];
+  if(!list.length){box.innerHTML='';return;}
+  box.innerHTML=`<div class="kpi-section" style="margin-bottom:18px">
+    <div class="kpi-hd"><h3>Agendas registradas · este mes: ${agendasManualThisMonth()}</h3></div>
+    <div class="calls-table-wrap"><table class="calls-table">
+      <thead><tr><th>Fecha</th><th>Lead</th><th>Nota</th><th>Por</th></tr></thead>
+      <tbody>${list.slice(0,50).map(a=>`<tr>
+        <td style="color:var(--muted)">${esc(isoToDisplay(a.date_iso))}</td>
+        <td style="font-weight:600">${esc(a.lead_name||'')}</td>
+        <td style="color:var(--muted)">${esc(a.note||'')||'—'}</td>
+        <td style="color:var(--dim);font-size:11px">${esc((a.created_by||'').split('@')[0])}</td>
+      </tr>`).join('')}</tbody>
+    </table></div>
+  </div>`;
+}
 // Fuente por contacto: se "recuerda" desde la stage de entrada (VSL Registro / Lead Instagram)
 function crmContactSource(){
   const m={};
@@ -3708,9 +3778,48 @@ async function authLogout(){
   if(sb) await sb.auth.signOut();
   location.reload();
 }
+// ── Rol del usuario: ¿es empleado? ¿de qué owner? ──
+let userRole='owner', ownerId=null;
+// Vista limitada para empleados: solo Métricas, sin edición (ocultación por JS, NO seguridad real)
+function applyEmployeeView(){
+  // Oculta los botones de pestaña que no sean Métricas
+  const allow=['metricas'];
+  document.querySelectorAll('.tabs .tab').forEach(btn=>{
+    const m=(btn.getAttribute('onclick')||'').match(/switchTab\('([^']+)'\)/);
+    const tab=m?m[1]:'';
+    if(!allow.includes(tab)) btn.style.display='none';
+  });
+  switchTab('metricas');
+  // Oculta botones de editar/añadir/exportar dentro de Métricas (lectura)
+  const hideSelectors=[
+    '[onclick^="openMetric"]','[onclick^="openDeliveryModal"]','[onclick^="openFunnelWeek"]',
+    '[onclick^="toggleBenchEdit"]','[onclick^="toggleCapEdit"]','[onclick^="toggleCallCapEdit"]',
+    '[onclick^="saveSnap"]','[onclick^="exportData"]','[onclick^="newMonthKpi"]','[onclick^="openKpiModal"]'
+  ];
+  document.querySelectorAll(hideSelectors.join(',')).forEach(el=>el.style.display='none');
+  // Banner + botón de agendar
+  const hd=document.querySelector('#tab-metricas .met-hd');
+  if(hd){
+    const actions=hd.querySelector('div');
+    if(actions)actions.innerHTML='<button class="btn btn-p" onclick="openAgendaModal()">+ Agendar llamada</button>';
+    const h2=hd.querySelector('h2');
+    if(h2)h2.innerHTML='Métricas <span style="font-size:11px;background:rgba(120,140,255,.15);color:#8aa0ff;padding:2px 10px;border-radius:20px;margin-left:8px">👤 modo empleado</span>';
+  }
+}
+async function detectRole(){
+  try{
+    const email=(sbUser.email||'').toLowerCase();
+    const {data,error}=await sb.from('app_roles').select('owner_id,role').eq('email',email).maybeSingle();
+    if(error){console.error('role',error);return;}
+    if(data&&data.role==='employee'){ userRole='employee'; ownerId=data.owner_id; }
+    else { userRole='owner'; ownerId=sbUser.id; }
+  }catch(e){console.error(e);userRole='owner';ownerId=sbUser.id;}
+}
 async function onAuthed(session){
   sbUser=session.user;
   syncStatus('☁ sincronizando…');
+  await detectRole();
+  if(userRole==='employee'){ return onAuthedEmployee(); }
   try{
     const {data,error}=await sb.from('app_state').select('data').eq('user_id',sbUser.id).maybeSingle();
     if(error) console.error('fetch remote',error);
@@ -3735,6 +3844,27 @@ async function onAuthed(session){
   syncStatus('☁ guardado');
   fetchCrmEvents(); // carga eventos del CRM para el funnel automático
   fetchMercuryTx(); // carga movimientos bancarios de Mercury
+  fetchAgendasManual(); // agendas metidas por empleados
+}
+// Flujo cuando el que entra es un EMPLEADO: lee el estado del owner, solo lectura, vista limitada
+async function onAuthedEmployee(){
+  syncStatus('👤 modo empleado');
+  try{
+    const {data,error}=await sb.from('app_state').select('data').eq('user_id',ownerId).maybeSingle();
+    if(error){console.error('fetch owner state',error);}
+    const remote=data&&data.data;
+    if(remote&&typeof remote==='object'&&Object.keys(remote).length>0){
+      // Cargamos el estado del owner SOLO en memoria (no lo persistimos como propio)
+      state=remote;
+    }
+  }catch(e){console.error(e);}
+  remoteReady=false; // NUNCA escribimos: el empleado no guarda el estado del owner
+  applyEmployeeView();
+  hideGate();
+  render();
+  fetchCrmEvents();
+  fetchMercuryTx();
+  fetchAgendasManual();
 }
 async function saveRemoteNow(){
   if(!sb||!sbUser) return;
