@@ -2668,8 +2668,10 @@ function closeDeliveryModal(){gid('modal-delivery').classList.remove('on');}
 // FUNNEL DE CAPTACIÓN
 // ═══════════════════════════
 const FUNNEL_STAGES=[
-  {key:'leadIg',      label:'Lead Instagram', desc:'entró por IG',        source:true},
-  {key:'leadVsl',     label:'Lead VSL',       desc:'entró por VSL/reels', source:true},
+  {key:'leadIg',      label:'Lead Instagram', desc:'entró por IG',        source:true, match:'lead instagram'},
+  {key:'leadVsl',     label:'Lead VSL',       desc:'entró por VSL/reels', source:true, match:'vsl registro'},
+  {key:'leadYt',      label:'Lead YouTube',   desc:'entró por YouTube',   source:true, match:'lead youtube'},
+  {key:'leadStories', label:'Lead Stories',   desc:'entró por Stories',   source:true, match:'lead stories'},
   {key:'leadCaliente',label:'Respondió',      desc:'abrió conversación',  conv:'% respuesta', bench:60},
   {key:'vslEnviada',  label:'VSL mandada',    desc:'',                    conv:'% envío VSL', bench:70},
   {key:'agendada',    label:'Agendada',       desc:'reservó llamada',     conv:'% agenda',    bench:30},
@@ -2771,13 +2773,14 @@ function crmContactSource(){
 function computeCrmWeek(startTs,endTs){
   const src=crmContactSource();
   const has=(s,kw)=>(s||'').toLowerCase().includes(kw);
-  const wk={leadVsl:0,leadIg:0,respondidoVsl:0,respondidoIg:0,leadCaliente:0,vslEnviada:0,agendada:0,realizada:0,perma:0,noCualif:0,noShow:0};
+  const wk={leadVsl:0,leadIg:0,leadYt:0,leadStories:0,respondidoVsl:0,respondidoIg:0,leadCaliente:0,vslEnviada:0,agendada:0,realizada:0,perma:0,noCualif:0,noShow:0};
   crmEvents.forEach(e=>{
     const t=new Date(e.changed_at).getTime();
     if(t<startTs||t>=endTs) return;
     const s=e.stage||'';
-    if(has(s,'vsl registro')) wk.leadVsl++;
-    else if(has(s,'lead instagram')) wk.leadIg++;
+    // Detecta la fuente por la stage de entrada (genérico para todas las fuentes)
+    const srcStage=FUNNEL_STAGES.find(st=>st.source&&has(s,st.match));
+    if(srcStage) wk[srcStage.key]++;
     if(has(s,'lead caliente')){
       wk.leadCaliente++;
       const so=src[e.contact_id];
@@ -2808,7 +2811,7 @@ function mondayOfISO(dateLike){
 }
 // Cómputo GLOBAL: suma semanas manuales + eventos CRM de semanas no registradas a mano
 function computeGlobalFunnel(){
-  const acc={leadVsl:0,leadIg:0,respondidoVsl:0,respondidoIg:0,leadCaliente:0,vslEnviada:0,agendada:0,realizada:0,perma:0,noCualif:0,noShow:0};
+  const acc={leadVsl:0,leadIg:0,leadYt:0,leadStories:0,respondidoVsl:0,respondidoIg:0,leadCaliente:0,vslEnviada:0,agendada:0,realizada:0,perma:0,noCualif:0,noShow:0};
   const manualWeeks=(state.funnel&&state.funnel.weeks)||[];
   const manualISOs=new Set(manualWeeks.map(w=>w.dateISO));
   manualWeeks.forEach(w=>{for(const k in acc)acc[k]+=(w[k]||0);});
@@ -2818,7 +2821,8 @@ function computeGlobalFunnel(){
     crmEvents.forEach(e=>{
       if(manualISOs.has(mondayOfISO(e.changed_at))) return; // semana ya cubierta manual
       const s=e.stage||'';
-      if(has(s,'vsl registro'))acc.leadVsl++; else if(has(s,'lead instagram'))acc.leadIg++;
+      const srcStage=FUNNEL_STAGES.find(st=>st.source&&has(s,st.match));
+      if(srcStage)acc[srcStage.key]++;
       if(has(s,'lead caliente')){acc.leadCaliente++;const so=src[e.contact_id];if(so==='vsl')acc.respondidoVsl++;else if(so==='instagram')acc.respondidoIg++;}
       if(has(s,'vsl mandada'))acc.vslEnviada++;
       if(has(s,'llamada agendada'))acc.agendada++;
