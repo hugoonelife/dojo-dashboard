@@ -683,9 +683,11 @@ tr:last-child td{border-bottom:none}
       <div style="display:flex;gap:8px;align-items:center">
         <select id="funnel-week-select" onchange="setFunnelWeek(this.value)" style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:inherit;outline:none;cursor:pointer"></select>
         <span id="funnel-week-lbl" style="font-size:11px;color:var(--dim)"></span>
+        <button class="btn btn-s" style="font-size:11px;padding:5px 12px" onclick="toggleBenchEdit()" id="bench-edit-btn">🎯 Objetivos</button>
         <button class="btn btn-s" style="font-size:11px;padding:5px 12px" onclick="openFunnelWeek()">✍ Editar/registrar manual</button>
       </div>
     </div>
+    <div id="bench-edit" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px"></div>
     <div id="funnel-body"></div>
   </div>
 
@@ -2175,6 +2177,10 @@ function toggleRevLog(){
 // ═══════════════════════════
 function toolMonthlyEur(t){return t.currency==='USD'?(t.amount||0)*getUsdEur():(t.amount||0);}
 function toolsTotal(){return(state.tools||[]).reduce((s,t)=>s+toolMonthlyEur(t),0);}
+// Clave del mes actual (AAAA-MM) para el reseteo mensual del estado "pagado"
+function currentMonthKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+// Una herramienta está "pagada" solo si se marcó EN el mes en curso (si no, vuelve a por pagar)
+function toolIsPaid(t){return t.paidMonth===currentMonthKey();}
 function openToolModal(id){
   gid('tool-id').value='';gid('tool-name').value='';gid('tool-info').value='';
   gid('tool-amount').value='';gid('tool-currency').value='EUR';gid('tool-day').value='';
@@ -2226,9 +2232,9 @@ function renderTools(){
       const tr=document.createElement('tr');tr.style.cursor='pointer';
       const eur=toolMonthlyEur(t);
       const usdTag=t.currency==='USD'?` <span style="font-size:9px;color:var(--dim)">($${t.amount})</span>`:'';
-      const paid=!!t.paid;
+      const paid=toolIsPaid(t); // pagado solo si se marcó este mes (se resetea cada mes)
       // chip de estado: verde pagado / rojo por pagar (clic alterna)
-      const chip=`<span class="pay-chip ${paid?'paid':'due'}" title="Clic para alternar pagado/por pagar">${paid?'✓ pagado':'● por pagar'}</span>`;
+      const chip=`<span class="pay-chip ${paid?'paid':'due'}" title="Clic para alternar pagado/por pagar (se reinicia cada mes)">${paid?'✓ pagado':'● por pagar'}</span>`;
       tr.innerHTML=`
         <td style="font-weight:600">${esc(t.name)}</td>
         <td style="color:var(--muted)">${esc(t.info)||'—'}</td>
@@ -2237,7 +2243,13 @@ function renderTools(){
         <td></td>`;
       // clic en el chip alterna el estado de pago sin abrir el modal
       const chipEl=tr.querySelector('.pay-chip');
-      if(chipEl)chipEl.addEventListener('click',e=>{e.stopPropagation();t.paid=!t.paid;persist();renderTools();});
+      if(chipEl)chipEl.addEventListener('click',e=>{
+        e.stopPropagation();
+        // marcar pagado = guardar el mes actual; desmarcar = borrar
+        t.paidMonth=toolIsPaid(t)?null:currentMonthKey();
+        delete t.paid; // limpiamos el flag viejo
+        persist();renderTools();
+      });
       tr.addEventListener('click',e=>{if(e.target.closest('.tool-del')||e.target.closest('.pay-chip'))return;openToolModal(t.id);});
       const del=document.createElement('button');del.className='tool-del call-del';del.textContent='✕';del.title='Eliminar';
       del.addEventListener('click',e=>{e.stopPropagation();
@@ -2250,7 +2262,7 @@ function renderTools(){
   }
   // Resumen pagado / por pagar (lo que necesitas tener en cuenta este mes)
   let paidSum=0, dueSum=0;
-  (state.tools||[]).forEach(t=>{const e=toolMonthlyEur(t);if(t.paid)paidSum+=e;else dueSum+=e;});
+  (state.tools||[]).forEach(t=>{const e=toolMonthlyEur(t);if(toolIsPaid(t))paidSum+=e;else dueSum+=e;});
   const sum=gid('tools-paystatus');
   if(sum){
     sum.innerHTML=`
@@ -2665,6 +2677,30 @@ const FUNNEL_STAGES=[
   {key:'perma',       label:'Miembro Perma',  desc:'venta',               conv:'% cierre',    bench:30},
 ];
 function funnelSources(wk){return FUNNEL_STAGES.filter(s=>s.source).reduce((sum,s)=>sum+(wk[s.key]||0),0);}
+// Objetivo (%) de un paso: usa tu override editable si existe, si no el por defecto
+function stageBench(s){const o=state.funnelBench&&state.funnelBench[s.key];return o!=null?o:s.bench;}
+// Pasos con objetivo editable (los que tienen conversión, no las fuentes)
+function benchStages(){return FUNNEL_STAGES.filter(s=>s.bench!=null);}
+function toggleBenchEdit(){
+  const el=gid('bench-edit');if(!el)return;
+  const show=el.style.display==='none';
+  el.style.display=show?'block':'none';
+  gid('bench-edit-btn').textContent=show?'✕ Cerrar objetivos':'🎯 Objetivos';
+  if(show){
+    el.innerHTML=`<div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:10px">Objetivos de conversión (%) — definen tu cuello de botella</div>
+      <div class="cap-edit-grid">`
+      +benchStages().map(s=>`<div class="field"><label>${s.conv} <span style="color:var(--dim)">(${s.label})</span></label><input type="number" min="0" max="100" id="bench-${s.key}" value="${stageBench(s)}"></div>`).join('')
+      +`</div><button class="btn btn-p" style="font-size:12px;padding:7px 16px;margin-top:6px" onclick="saveBench()">Guardar objetivos</button>`;
+  }
+}
+function saveBench(){
+  if(!state.funnelBench)state.funnelBench={};
+  benchStages().forEach(s=>{
+    const v=parseFloat(gid('bench-'+s.key).value);
+    if(!isNaN(v))state.funnelBench[s.key]=v;
+  });
+  persist();toggleBenchEdit();renderFunnel();
+}
 function weekMondayISO(){
   const d=new Date();const day=d.getDay();const diff=(day===0?-6:1)-day;
   d.setDate(d.getDate()+diff);
@@ -2705,12 +2741,14 @@ async function fetchMercuryTx(){
 }
 // Convierte una fila de Mercury al formato de entrada del registro (income/expense)
 function mercuryToEntry(t){
-  const amt=parseFloat(t.amount)||0;
-  const isExp=amt<0;                       // negativo = gasto en Mercury
+  const amtUsd=parseFloat(t.amount)||0;    // Mercury reporta en USD (cuenta en USD)
+  const isExp=amtUsd<0;                     // negativo = gasto
+  const absUsd=Math.abs(amtUsd);
+  const eur=absUsd*getUsdEur();             // convertimos a EUR con tu tasa editable
   const dateISO=(t.posted_at||t.created_at||'').slice(0,10);
   return {
     id:'mrc-'+t.id, type:isExp?'expense':'income',
-    amount:Math.abs(amt), currency:'EUR',  // Mercury reporta en la divisa de la cuenta; lo tratamos como EUR ya convertido
+    amount:eur, currency:'USD', origAmount:absUsd.toFixed(2), // guardamos el original USD para mostrarlo
     note:(t.counterparty||t.note||t.kind||'Mercury'),
     category:isExp?'Mercury':undefined,
     dateISO, date:isoToDisplay(dateISO), ts:new Date(t.created_at||dateISO).getTime(),
@@ -3100,7 +3138,7 @@ function renderFunnel(){
     const prev=(i===nSources)?sumSources:(wk[FUNNEL_STAGES[i-1].key]||0);
     const cur=wk[FUNNEL_STAGES[i].key]||0;
     const pct=prev>0?(cur/prev*100):0;
-    const bench=FUNNEL_STAGES[i].bench;
+    const bench=stageBench(FUNNEL_STAGES[i]);
     convs.push({i,pct,bench,ratio:bench?pct/bench:1,stage:FUNNEL_STAGES[i]});
   }
   let bottleneck=null;
@@ -3158,8 +3196,9 @@ function renderFunnel(){
       const cur=wk[next.key]||0;
       const pct=prev>0?(cur/prev*100):0;
       const isBottle=bottleneck&&bottleneck.i===idx+1;
-      const cls=isBottle?'bad':(pct>=next.bench?'good':'');
-      html+=`<div class="funnel-conv" title="${next.conv} · objetivo ${next.bench}%"><b class="${cls}">${pct.toFixed(0)}%</b><span class="ar">→</span></div>`;
+      const nb=stageBench(next);
+      const cls=isBottle?'bad':(pct>=nb?'good':'');
+      html+=`<div class="funnel-conv" title="${next.conv} · objetivo ${nb}%"><b class="${cls}">${pct.toFixed(0)}%</b><span class="ar">→</span></div>`;
     }
   });
   html+='</div>';
