@@ -290,6 +290,23 @@ main{padding:20px 28px 60px;max-width:1600px;margin:0 auto}
 .kpi-u{font-size:10px;color:var(--muted)}
 .kpi-arr{color:var(--dim);font-size:11px}
 .kpi-result{font-size:12px;font-weight:700;color:var(--gold);background:var(--gold2);border-radius:6px;padding:3px 10px}
+/* MIS CAPS */
+.cap-divider{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.16em;color:var(--gold);margin:26px 0 12px;padding-bottom:8px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px}
+.cap-divider::before{content:"▸";color:var(--gold)}
+.cap-edit-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 14px;margin-bottom:12px}
+.cap-stat{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.cap-stat-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px}
+.cap-stat-val{font-size:22px;font-weight:800;line-height:1.1}
+.cap-stat-sub{font-size:10px;color:var(--dim);margin-top:3px}
+.cap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.cap-bar-wrap{background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:12px}
+.cap-bar-track{height:14px;background:rgba(255,255,255,.06);border-radius:7px;overflow:hidden;margin:8px 0}
+.cap-bar-fill{height:100%;border-radius:7px;transition:width .4s}
+.cap-alert{border-radius:8px;padding:9px 13px;font-size:12px;font-weight:600;margin-bottom:12px}
+.cap-alert.warn{background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.3);color:#e85d3a}
+.cap-alert.ok{background:rgba(80,200,120,.08);border:1px solid rgba(80,200,120,.3);color:var(--ok)}
+.cap-streak{display:flex;gap:5px;margin:8px 0;flex-wrap:wrap}
+.cap-week{flex:1;min-width:34px;text-align:center;border-radius:6px;padding:6px 2px;font-size:10px;font-weight:700;border:1px solid var(--border)}
 /* FUNNEL (pills tipo KPI + barritas) */
 .funnel-empty{text-align:center;color:var(--dim);font-size:12px;padding:20px}
 .funnel-bottleneck{background:rgba(232,93,58,.08);border:1px solid rgba(232,93,58,.3);border-radius:8px;padding:8px 12px;margin-bottom:14px;font-size:12px}
@@ -685,6 +702,61 @@ tr:last-child td{border-bottom:none}
       <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="openDeliveryModal()">Editar</button>
     </div>
     <div id="delivery-rows"></div>
+  </div>
+
+  <!-- ════ MIS CAPS ════ -->
+  <div class="cap-divider">Mis CAPs · límite de entrega</div>
+  <div class="kpi-section">
+    <div class="kpi-hd">
+      <h3>Cap de entrega · Permashift</h3>
+      <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="toggleCapEdit()" id="cap-edit-btn">Editar parámetros</button>
+    </div>
+    <!-- Parámetros editables (ocultos por defecto) -->
+    <div id="cap-edit" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div class="cap-edit-grid">
+        <div class="field"><label>Mi límite (h/semana a entrega)</label><input type="number" step="0.5" id="cap-maxH"></div>
+        <div class="field"><label>Clientes por grupo</label><input type="number" id="cap-perGroup"></div>
+        <div class="field"><label>Semanas que dura un grupo</label><input type="number" id="cap-weeks"></div>
+        <div class="field"><label>Llamadas grupales que doy YO</label><input type="number" id="cap-myGroupCalls"></div>
+        <div class="field"><label>Duración llamada grupal (h)</label><input type="number" step="0.25" id="cap-groupDur"></div>
+        <div class="field"><label>Mentorías 1-a-1 por cliente</label><input type="number" id="cap-mentPerClient"></div>
+        <div class="field"><label>Duración mentoría (h)</label><input type="number" step="0.25" id="cap-mentDur"></div>
+        <div class="field"><label>Umbral: nº grupos para pasar grupales a la coach</label><input type="number" id="cap-coachThreshold"></div>
+        <div class="field"><label>Grupos activos ahora mismo</label><input type="number" id="cap-activeGroups"></div>
+      </div>
+      <button class="btn btn-p" style="font-size:12px;padding:7px 16px;margin-top:6px" onclick="saveCap()">Guardar</button>
+    </div>
+    <div id="cap-body"></div>
+  </div>
+
+  <!-- Cap de llamadas de venta -->
+  <div class="kpi-section">
+    <div class="kpi-hd">
+      <h3>Cap de llamadas de venta · setter/closer</h3>
+      <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="toggleCallCapEdit()" id="callcap-edit-btn">Editar parámetros</button>
+    </div>
+    <div id="callcap-edit" style="display:none;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:14px">
+      <div class="cap-edit-grid">
+        <div class="field"><label>Mín. llamadas/semana (objetivo)</label><input type="number" id="callcap-min"></div>
+        <div class="field"><label>Máx. llamadas/semana (objetivo)</label><input type="number" id="callcap-max"></div>
+        <div class="field"><label>Semanas seguidas para meter closer</label><input type="number" id="callcap-streak"></div>
+      </div>
+      <button class="btn btn-p" style="font-size:12px;padding:7px 16px;margin-top:6px" onclick="saveCallCap()">Guardar</button>
+    </div>
+    <div id="callcap-body"></div>
+  </div>
+
+  <!-- ════ KPIs MENSUALES ════ -->
+  <div class="cap-divider" style="color:var(--con)">KPIs mensuales</div>
+  <div class="kpi-section">
+    <div class="kpi-hd">
+      <h3>KPIs del mes · <span id="month-kpi-range" style="color:var(--con);text-transform:none;letter-spacing:0;font-weight:700"></span></h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <select id="month-kpi-select" onchange="setMonthKpi(this.value)" style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:11px;font-family:inherit;outline:none;cursor:pointer"></select>
+        <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="newMonthKpi()">+ Nuevo mes</button>
+      </div>
+    </div>
+    <div class="met-grid" id="month-kpi-grid"></div>
   </div>
 
   <div class="hist-box">
@@ -1854,6 +1926,9 @@ function renderMetrics(){
   const iv=gid('mv-income');if(iv)iv.textContent='€'+fmt(inc);
   const ivsub=gid('mv-income-sub');if(ivsub)ivsub.textContent='gastos: €'+fmt(exp);
   renderDelivery();
+  renderCap();
+  renderCallCap();
+  renderMonthKpi();
   renderFunnel();
   renderRevLog();
   renderSalesCalls();
@@ -2644,6 +2719,220 @@ function getFunnelWeek(weekISO){
   }
   return {wk:null,isAuto:true};
 }
+
+// ═══════════════════════════
+// MIS CAPS
+// ═══════════════════════════
+// Carga horaria por grupo según si yo doy las grupales o las pasa la coach
+function capLoadPerGroup(c,coachTakesGroups){
+  const groupH = coachTakesGroups ? 0 : (c.myGroupCalls*c.groupDur); // grupales mías (0 si las da la coach)
+  const mentH  = c.perGroup*c.mentPerClient*c.mentDur;               // mentorías 1-a-1 (siempre mías)
+  return groupH+mentH;
+}
+function toggleCapEdit(){
+  const el=gid('cap-edit'); if(!el)return;
+  const show=el.style.display==='none';
+  el.style.display=show?'block':'none';
+  gid('cap-edit-btn').textContent=show?'Cerrar':'Editar parámetros';
+  if(show){ // rellenar inputs con el estado actual
+    const c=state.cap;
+    gid('cap-maxH').value=c.maxH; gid('cap-perGroup').value=c.perGroup;
+    gid('cap-weeks').value=c.weeks; gid('cap-myGroupCalls').value=c.myGroupCalls;
+    gid('cap-groupDur').value=c.groupDur; gid('cap-mentPerClient').value=c.mentPerClient;
+    gid('cap-mentDur').value=c.mentDur; gid('cap-coachThreshold').value=c.coachThreshold;
+    gid('cap-activeGroups').value=c.activeGroups;
+  }
+}
+function saveCap(){
+  const num=(id,d)=>{const v=parseFloat(gid(id).value);return isNaN(v)?d:v;};
+  const c=state.cap;
+  c.maxH=num('cap-maxH',c.maxH); c.perGroup=num('cap-perGroup',c.perGroup);
+  c.weeks=num('cap-weeks',c.weeks); c.myGroupCalls=num('cap-myGroupCalls',c.myGroupCalls);
+  c.groupDur=num('cap-groupDur',c.groupDur); c.mentPerClient=num('cap-mentPerClient',c.mentPerClient);
+  c.mentDur=num('cap-mentDur',c.mentDur); c.coachThreshold=num('cap-coachThreshold',c.coachThreshold);
+  c.activeGroups=num('cap-activeGroups',c.activeGroups);
+  persist(); toggleCapEdit(); renderCap();
+}
+function renderCap(){
+  const body=gid('cap-body'); if(!body)return;
+  const c=state.cap;
+  // ¿La coach ya lleva las grupales? Cuando los grupos activos cruzan el umbral.
+  const coachTakesGroups = c.activeGroups>=c.coachThreshold;
+  const loadGroup = capLoadPerGroup(c,coachTakesGroups);        // h totales por grupo
+  const loadWeek  = loadGroup/c.weeks;                           // h/semana por grupo activo
+  const capGroups = loadWeek>0 ? c.maxH/loadWeek : 0;            // grupos en paralelo que aguanto
+  const capClients= capGroups*c.perGroup;                        // clientes totales
+  // ritmo de tandas: cada grupo dura c.weeks; si puedo tener capGroups en paralelo,
+  // puedo meter 1 tanda nueva cada (c.weeks / capGroups) semanas
+  const weeksPerNewBatch = capGroups>0 ? c.weeks/capGroups : 0;
+  // carga actual y % de mi límite usado
+  const curWeekLoad = c.activeGroups*loadWeek;
+  const usedPct = c.maxH>0 ? (curWeekLoad/c.maxH*100) : 0;
+
+  const barColor = usedPct>=100?'#e85d3a':(usedPct>=80?'var(--gold)':'var(--ok)');
+  // aviso del umbral coach
+  let alert='';
+  if(coachTakesGroups){
+    alert=`<div class="cap-alert ok">✅ Tienes ${c.activeGroups} grupos activos (umbral ${c.coachThreshold}): las llamadas grupales las lleva la coach. Tu carga por grupo baja a ${loadGroup}h (solo mentorías).</div>`;
+  } else if(c.activeGroups>0){
+    const falta=c.coachThreshold-c.activeGroups;
+    alert=`<div class="cap-alert warn">⚠️ Aún das tú las grupales. Cuando llegues a ${c.coachThreshold} grupos (${falta} más) debes pasárselas a la coach para no ser el tapón.</div>`;
+  }
+  let overAlert='';
+  if(usedPct>100){
+    overAlert=`<div class="cap-alert warn">🔴 Estás al ${usedPct.toFixed(0)}% de tu límite — por encima de las ${c.maxH}h/sem. Reparte más con la coach o frena tandas nuevas.</div>`;
+  }
+
+  body.innerHTML=`
+    ${overAlert}${alert}
+    <div class="cap-grid">
+      <div class="cap-stat"><div class="cap-stat-lbl">Cap · grupos en paralelo</div>
+        <div class="cap-stat-val" style="color:var(--gold)">${capGroups.toFixed(1)}</div>
+        <div class="cap-stat-sub">con ${c.maxH}h/sem máx</div></div>
+      <div class="cap-stat"><div class="cap-stat-lbl">Cap · clientes totales</div>
+        <div class="cap-stat-val">${Math.floor(capClients)}</div>
+        <div class="cap-stat-sub">${c.perGroup}/grupo</div></div>
+      <div class="cap-stat"><div class="cap-stat-lbl">Ritmo de tandas</div>
+        <div class="cap-stat-val">1<span style="font-size:13px;font-weight:600;color:var(--muted)"> cada ${weeksPerNewBatch.toFixed(1)} sem</span></div>
+        <div class="cap-stat-sub">tanda nueva sostenible</div></div>
+      <div class="cap-stat"><div class="cap-stat-lbl">Carga por grupo</div>
+        <div class="cap-stat-val" style="font-size:18px">${loadGroup}h<span style="font-size:12px;color:var(--muted)"> · ${loadWeek.toFixed(2)}h/sem</span></div>
+        <div class="cap-stat-sub">en ${c.weeks} semanas</div></div>
+    </div>
+    <div class="cap-bar-wrap">
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:700">
+        <span>Uso actual: ${c.activeGroups} grupos · ${curWeekLoad.toFixed(1)}h/sem</span>
+        <span style="color:${barColor}">${usedPct.toFixed(0)}% de tu límite</span>
+      </div>
+      <div class="cap-bar-track"><div class="cap-bar-fill" style="width:${Math.min(100,usedPct)}%;background:${barColor}"></div></div>
+      <div style="font-size:11px;color:var(--dim)">Límite: ${c.maxH}h/sem · te quedan ${Math.max(0,(c.maxH-curWeekLoad)).toFixed(1)}h libres</div>
+    </div>`;
+}
+
+// ── Cap de llamadas de venta: cuándo meter closer ──
+function isoWeekKey(dateISO){ // agrupa por lunes ISO de la semana de esa fecha
+  const d=new Date(dateISO); const day=d.getDay(); d.setDate(d.getDate()-(day===0?6:day-1));
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function toggleCallCapEdit(){
+  const el=gid('callcap-edit'); if(!el)return;
+  const show=el.style.display==='none';
+  el.style.display=show?'block':'none';
+  gid('callcap-edit-btn').textContent=show?'Cerrar':'Editar parámetros';
+  if(show){const cc=state.callCap;gid('callcap-min').value=cc.min;gid('callcap-max').value=cc.max;gid('callcap-streak').value=cc.streak;}
+}
+function saveCallCap(){
+  const num=(id,d)=>{const v=parseFloat(gid(id).value);return isNaN(v)?d:v;};
+  const cc=state.callCap;
+  cc.min=num('callcap-min',cc.min); cc.max=num('callcap-max',cc.max); cc.streak=num('callcap-streak',cc.streak);
+  persist(); toggleCallCapEdit(); renderCallCap();
+}
+function renderCallCap(){
+  const body=gid('callcap-body'); if(!body)return;
+  const cc=state.callCap;
+  // Cuenta llamadas reales por semana ISO desde el tracker de ventas
+  const byWeek={};
+  (state.salesCalls||[]).forEach(c=>{const k=isoWeekKey(c.dateISO||new Date(c.ts||Date.now()).toISOString().slice(0,10));byWeek[k]=(byWeek[k]||0)+1;});
+  // Últimas N semanas (incluida la actual), de más antigua a más reciente
+  const weeks=[]; const cur=new Date(); const cd=cur.getDay(); cur.setDate(cur.getDate()-(cd===0?6:cd-1));
+  const N=Math.max(cc.streak,6);
+  for(let i=N-1;i>=0;i--){const w=new Date(cur);w.setDate(cur.getDate()-7*i);
+    const key=w.getFullYear()+'-'+String(w.getMonth()+1).padStart(2,'0')+'-'+String(w.getDate()).padStart(2,'0');
+    weeks.push({key,n:byWeek[key]||0});}
+  // ¿Cumple el objetivo? min ≤ n (el máx es referencia, no requisito de bloqueo)
+  const hits=weeks.map(w=>w.n>=cc.min);
+  // racha de semanas consecutivas cumpliendo, hasta la más reciente
+  let streakNow=0;
+  for(let i=hits.length-1;i>=0;i--){if(hits[i])streakNow++;else break;}
+  const ready=streakNow>=cc.streak;
+
+  const weekCells=weeks.map(w=>{
+    const ok=w.n>=cc.min, over=w.n>cc.max;
+    const col=ok?(over?'var(--gold)':'var(--ok)'):'#e85d3a';
+    const bg=ok?(over?'rgba(212,160,60,.12)':'rgba(80,200,120,.12)'):'rgba(232,93,58,.1)';
+    return `<div class="cap-week" style="color:${col};background:${bg};border-color:${col}33" title="Semana del ${isoToDisplay(w.key)}">${w.n}</div>`;
+  }).join('');
+
+  const alert = ready
+    ? `<div class="cap-alert ok">✅ Llevas ${streakNow} semanas seguidas en objetivo (≥${cc.min}). <b>Es momento de meter un closer.</b></div>`
+    : `<div class="cap-alert warn">⏳ Racha actual: ${streakNow}/${cc.streak} semanas en objetivo. Sostén ${cc.min}–${cc.max} llamadas/sem hasta llegar a ${cc.streak} para meter closer.</div>`;
+
+  body.innerHTML=`
+    ${alert}
+    <div class="cap-bar-wrap">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:2px">Llamadas/semana (últimas ${N}) · objetivo ${cc.min}–${cc.max}</div>
+      <div class="cap-streak">${weekCells}</div>
+      <div style="font-size:11px;color:var(--dim)">🟢 cumple · 🟠 por encima del máx · 🔴 por debajo. Se cuenta solo desde el tracker de llamadas de abajo.</div>
+    </div>`;
+}
+
+// ═══════════════════════════
+// KPIs MENSUALES (todo editable a mano)
+// ═══════════════════════════
+// Definición de campos: clave, etiqueta, icono, color
+const MONTH_KPI_FIELDS=[
+  {k:'agendadas', lbl:'Llamadas agendadas', icon:'📞', color:'var(--gold)'},
+  {k:'cierres',   lbl:'Cierres',            icon:'🤝', color:'var(--ok)'},
+  {k:'visitas',   lbl:'Visitas (web/perfil)',icon:'👁', color:'var(--con)'},
+  {k:'reels',     lbl:'Reels publicados',   icon:'🎬', color:'#d07ed0'},
+  {k:'ytVideos',  lbl:'Vídeos YouTube',     icon:'▶️', color:'#e85d3a'},
+  {k:'ytViews',   lbl:'Visitas YouTube',    icon:'📺', color:'#e85d3a'}
+];
+let monthKpiSel=null; // id del mes mostrado
+function setMonthKpi(id){monthKpiSel=id;renderMonthKpi();}
+function newMonthKpi(){
+  const lbl=prompt('Etiqueta del nuevo periodo (ej. "15 jun – 15 jul")');
+  if(!lbl)return;
+  if(!state.monthlyKpis)state.monthlyKpis=[];
+  const m={id:Date.now().toString(),label:lbl.trim()};
+  MONTH_KPI_FIELDS.forEach(f=>m[f.k]=0);
+  state.monthlyKpis.unshift(m); // el más nuevo primero
+  monthKpiSel=m.id;
+  persist();renderMonthKpi();
+}
+function editMonthKpiField(id,key){
+  const m=(state.monthlyKpis||[]).find(x=>x.id===id);if(!m)return;
+  const fld=MONTH_KPI_FIELDS.find(f=>f.k===key);
+  const v=prompt(fld.lbl+':', m[key]!=null?m[key]:0);
+  if(v===null)return;
+  m[key]=parseFloat(v)||0;
+  persist();renderMonthKpi();
+}
+function delMonthKpi(id){
+  if(!confirm('¿Borrar este periodo de KPIs?'))return;
+  state.monthlyKpis=(state.monthlyKpis||[]).filter(x=>x.id!==id);
+  monthKpiSel=null;
+  persist();renderMonthKpi();
+}
+function renderMonthKpi(){
+  const grid=gid('month-kpi-grid');if(!grid)return;
+  const list=state.monthlyKpis||[];
+  const sel=gid('month-kpi-select');
+  const rangeEl=gid('month-kpi-range');
+  if(!list.length){
+    if(sel)sel.innerHTML='';
+    if(rangeEl)rangeEl.textContent='';
+    grid.innerHTML='<div class="funnel-empty" style="grid-column:1/-1">Sin meses aún — dale a "+ Nuevo mes"</div>';
+    return;
+  }
+  if(!monthKpiSel||!list.find(m=>m.id===monthKpiSel))monthKpiSel=list[0].id;
+  if(sel)sel.innerHTML=list.map(m=>`<option value="${m.id}" ${m.id===monthKpiSel?'selected':''}>${esc(m.label)}</option>`).join('');
+  const m=list.find(x=>x.id===monthKpiSel);
+  if(rangeEl)rangeEl.textContent=m.label;
+  // ratio cierre auto si hay agendadas
+  const closeRate=m.agendadas>0?(m.cierres/m.agendadas*100):0;
+  grid.innerHTML=MONTH_KPI_FIELDS.map(f=>{
+    const val=m[f.k]!=null?m[f.k]:0;
+    const sub=f.k==='cierres'&&m.agendadas>0?`${closeRate.toFixed(0)}% de cierre`:'clic para editar';
+    return `<div class="met-card" style="cursor:pointer" onclick="editMonthKpiField('${m.id}','${f.k}')">
+      <div class="met-tag">${f.icon} ${f.lbl}</div>
+      <div class="met-val b" style="color:${f.color}">${fmt(val)}</div>
+      <div class="met-sub">${sub}</div>
+    </div>`;
+  }).join('') + `<div class="met-card" style="display:flex;align-items:center;justify-content:center;cursor:pointer;border-style:dashed" onclick="delMonthKpi('${m.id}')">
+      <span style="color:#e85d3a;font-size:12px;font-weight:700">🗑 Borrar este mes</span></div>`;
+}
+
 function renderFunnel(){
   const body=gid('funnel-body');if(!body)return;
   const lblEl=gid('funnel-week-lbl');
@@ -3080,6 +3369,27 @@ if(!state.seededTools){
 }
 if(!state.usdEur)state.usdEur=0.93;
 if(!state.deliveryCosts)state.deliveryCosts=JSON.parse(JSON.stringify(DELIVERY_DEFAULTS));
+// Cap de entrega (Permashift) — parámetros editables con tus números actuales
+if(!state.cap)state.cap={
+  maxH:8,            // límite de horas/semana que quiero dedicar a entrega
+  perGroup:5,        // clientes por grupo
+  weeks:12,          // duración de un grupo en semanas
+  myGroupCalls:5,    // llamadas grupales que doy YO (de las 12)
+  groupDur:1.5,      // duración de cada llamada grupal (h)
+  mentPerClient:2,   // mentorías 1-a-1 por cliente
+  mentDur:1,         // duración de cada mentoría (h)
+  coachThreshold:4,  // a partir de N grupos activos, paso las grupales a la coach
+  activeGroups:0     // grupos corriendo ahora mismo
+};
+// Cap de llamadas de venta (cuándo meter closer)
+if(!state.callCap)state.callCap={min:15,max:18,streak:4};
+// KPIs mensuales — seed del mes 15 may–15 jun (una sola vez)
+if(!state.monthlyKpis){
+  state.monthlyKpis=[{
+    id:'mk-may-jun-2026', label:'15 may – 15 jun 2026',
+    agendadas:18, cierres:4, visitas:0, reels:0, ytVideos:0, ytViews:0
+  }];
+}
 // KPI multi-paso Leads → Agendas (añadir si no existe)
 if(state.kpis&&!state.kpis.find(k=>k.id==='leadsAgendas')){
   state.kpis.push({id:'leadsAgendas',icon:'🎯',label:'LEADS → AGENDAS',chain:[
