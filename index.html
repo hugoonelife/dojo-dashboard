@@ -307,13 +307,14 @@ main{padding:20px 28px 60px;max-width:1600px;margin:0 auto}
 .cap-alert.ok{background:rgba(80,200,120,.08);border:1px solid rgba(80,200,120,.3);color:var(--ok)}
 .cap-streak{display:flex;gap:5px;margin:8px 0;flex-wrap:wrap}
 .cap-week{flex:1;min-width:34px;text-align:center;border-radius:6px;padding:6px 2px;font-size:10px;font-weight:700;border:1px solid var(--border)}
-/* Ramas de fuga del funnel */
-.funnel-leaks{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
-.funnel-leak{flex:1;min-width:180px;background:rgba(232,93,58,.06);border:1px dashed rgba(232,93,58,.35);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:10px}
-.funnel-leak .arr{font-size:18px;color:#e85d3a;line-height:1}
-.funnel-leak .n{font-size:20px;font-weight:800;color:#e85d3a}
-.funnel-leak .meta{font-size:11px;color:var(--muted)}
-.funnel-leak .pct{margin-left:auto;font-size:15px;font-weight:800;color:#e85d3a}
+/* Bifurcación de fuga anclada bajo su pill */
+.funnel-branch{display:flex;flex-direction:column;align-items:flex-start}
+.funnel-leak-arrow{display:flex;align-items:flex-start;gap:4px;margin-top:2px;padding-left:6px}
+.bd-arrow{font-size:20px;color:#e85d3a;line-height:1;transform:translateY(-2px)}
+.bd-box{background:rgba(232,93,58,.08);border:1px dashed rgba(232,93,58,.4);border-radius:8px;padding:4px 9px}
+.bd-lbl{font-size:9px;text-transform:uppercase;letter-spacing:.04em;color:#e85d3a;font-weight:700;white-space:nowrap}
+.bd-num{font-size:14px;font-weight:800;color:#e85d3a;line-height:1.1}
+.bd-pct{font-size:10px;font-weight:600;color:var(--dim)}
 /* Pagado / por pagar (herramientas) */
 .pay-chip{display:inline-block;font-size:9px;font-weight:700;padding:2px 7px;border-radius:20px;cursor:pointer;margin-left:6px;white-space:nowrap}
 .pay-chip.paid{background:rgba(80,200,120,.15);color:var(--ok);border:1px solid rgba(80,200,120,.4)}
@@ -2719,9 +2720,9 @@ const FUNNEL_STAGES=[
   {key:'leadVsl',     label:'Lead VSL',       desc:'entró por VSL/reels', source:true, match:'vsl registro'},
   {key:'leadYt',      label:'YouTube',        desc:'entró por YouTube',   source:true, match:'lead youtube'},
   {key:'leadStories', label:'Stories',        desc:'entró por Stories',   source:true, match:'lead stories'},
-  {key:'leadCaliente',label:'Respondió',      desc:'abrió conversación',  conv:'% respuesta', bench:60},
+  {key:'leadCaliente',label:'Respondió',      desc:'abrió conversación',  conv:'% respuesta', bench:60, leak:{key:'noCualif',label:'no cualificado',base:'self'}},
   {key:'vslEnviada',  label:'VSL mandada',    desc:'',                    conv:'% envío VSL', bench:70},
-  {key:'agendada',    label:'Agendada',       desc:'reservó llamada',     conv:'% agenda',    bench:30},
+  {key:'agendada',    label:'Agendada',       desc:'reservó llamada',     conv:'% agenda',    bench:30, leak:{key:'noShow',label:'no se presentó',base:'self'}},
   {key:'realizada',   label:'Tuvo llamada',   desc:'apareció',            conv:'show rate',   bench:75},
   {key:'perma',       label:'Miembro Perma',  desc:'venta',               conv:'% cierre',    bench:30},
 ];
@@ -3102,7 +3103,7 @@ function renderCallCap(){
 const MONTH_KPI_FIELDS=[
   {k:'agendadas', lbl:'Llamadas agendadas', icon:'📞', color:'var(--gold)', auto:true},
   {k:'cierres',   lbl:'Cierres',            icon:'🤝', color:'var(--ok)',   auto:true},
-  {k:'visitas',   lbl:'Visitas (web/perfil)',icon:'👁', color:'var(--con)'},
+  {k:'visitas',   lbl:'Visitas Instagram',  icon:'📸', color:'#d07ed0'},
   {k:'reels',     lbl:'Reels publicados',   icon:'🎬', color:'#d07ed0'},
   {k:'ytVideos',  lbl:'Vídeos YouTube',     icon:'▶️', color:'#e85d3a'},
   {k:'ytViews',   lbl:'Visitas YouTube',    icon:'📺', color:'#e85d3a'}
@@ -3181,11 +3182,20 @@ function renderMonthKpi(){
   if(rangeEl)rangeEl.textContent=m.label;
   const ag=monthKpiVal(m,MONTH_KPI_FIELDS[0]).val;
   const ci=monthKpiVal(m,MONTH_KPI_FIELDS[1]).val;
+  const vis=monthKpiVal(m,MONTH_KPI_FIELDS.find(f=>f.k==='visitas')).val;
+  const reels=monthKpiVal(m,MONTH_KPI_FIELDS.find(f=>f.k==='reels')).val;
+  const ytVid=monthKpiVal(m,MONTH_KPI_FIELDS.find(f=>f.k==='ytVideos')).val;
+  const ytView=monthKpiVal(m,MONTH_KPI_FIELDS.find(f=>f.k==='ytViews')).val;
   const closeRate=ag>0?(ci/ag*100):0;
   grid.innerHTML=MONTH_KPI_FIELDS.map(f=>{
     const {val,manual}=monthKpiVal(m,f);
     let sub;
+    // % / ratios con sentido entre métricas
     if(f.k==='cierres'&&ag>0) sub=`${closeRate.toFixed(0)}% de cierre`;
+    else if(f.k==='visitas'&&reels>0) sub=`${fmt(Math.round(vis/reels))} visitas/reel`;
+    else if(f.k==='reels'&&vis>0) sub=`${fmt(Math.round(vis/reels))} visitas/reel`;
+    else if(f.k==='ytViews'&&ytVid>0) sub=`${fmt(Math.round(ytView/ytVid))} visitas/vídeo`;
+    else if(f.k==='ytVideos'&&ytView>0) sub=`${fmt(Math.round(ytView/ytVid))} visitas/vídeo`;
     else if(f.auto) sub=manual?'✍ fijado a mano':'🔄 auto del tracker';
     else sub='clic para editar';
     return `<div class="met-card" style="cursor:pointer" onclick="editMonthKpiField('${m.id}','${f.k}')">
@@ -3285,11 +3295,31 @@ function renderFunnel(){
       <div class="funnel-pill-bar"><div class="funnel-pill-fill${src}" style="width:${opts.total?100:w}%"></div></div>
     </div>`;
   };
+  // Envuelve una pill que tiene fuga: pill arriba, flecha ↘ + etiqueta debajo
+  const wrapLeak=(pillHtml,s,count)=>{
+    if(!s.leak) return pillHtml;
+    const leakCount=wk[s.leak.key]||0;
+    if(leakCount<=0) return pillHtml; // sin fuga registrada, no dibujamos rama
+    const base=count||0; // % sobre los que llegaron a este punto
+    const pct=base>0?(leakCount/base*100):0;
+    return `<div class="funnel-branch">
+      ${pillHtml}
+      <div class="funnel-leak-arrow" title="${s.leak.label}: ${fmt(leakCount)} (${pct.toFixed(0)}% de ${s.label})">
+        <span class="bd-arrow">↘</span>
+        <div class="bd-box">
+          <div class="bd-lbl">${s.leak.label}</div>
+          <div class="bd-num">${fmt(leakCount)} <span class="bd-pct">${pct.toFixed(0)}%</span></div>
+        </div>
+      </div>
+    </div>`;
+  };
+
   html+='<div class="funnel-flow">';
   FUNNEL_STAGES.forEach((s,idx)=>{
     const count=wk[s.key]||0;
     const isBottleCard=bottleneck&&bottleneck.i===idx;
-    html+=pillFn(count,s.label,{src:s.source,bottle:isBottleCard,desc:s.desc});
+    const pill=pillFn(count,s.label,{src:s.source,bottle:isBottleCard,desc:s.desc});
+    html+=wrapLeak(pill,s,count);
     // Entre las dos fuentes: "+"  ; tras la última fuente: "=" + Total
     if(s.source&&idx<nSources-1) html+=`<span class="funnel-plus">+</span>`;
     if(s.source&&idx===nSources-1){
@@ -3308,31 +3338,6 @@ function renderFunnel(){
     }
   });
   html+='</div>';
-
-  // ── Ramas de fuga: no-cualificado y no-show (se bifurcan del flujo) ──
-  const noCualif=wk.noCualif||0, noShow=wk.noShow||0;
-  if(noCualif>0||noShow>0){
-    const pctCualif=sumSources>0?(noCualif/sumSources*100):0;   // sobre el total de leads
-    const agend=wk.agendada||0;
-    const pctShow=agend>0?(noShow/agend*100):0;                  // sobre los que agendaron
-    let leaks='<div class="funnel-leaks">';
-    if(noCualif>0){
-      leaks+=`<div class="funnel-leak" title="Leads que se marcaron como NO cualificados">
-        <span class="arr">↘</span>
-        <div><div class="n">${fmt(noCualif)}</div><div class="meta">No cualificados</div></div>
-        <span class="pct">${pctCualif.toFixed(0)}%<span style="display:block;font-size:9px;color:var(--dim);font-weight:600">de los leads</span></span>
-      </div>`;
-    }
-    if(noShow>0){
-      leaks+=`<div class="funnel-leak" title="Agendaron pero no se presentaron a la llamada">
-        <span class="arr">↘</span>
-        <div><div class="n">${fmt(noShow)}</div><div class="meta">No se presentaron</div></div>
-        <span class="pct">${pctShow.toFixed(0)}%<span style="display:block;font-size:9px;color:var(--dim);font-weight:600">de las agendas</span></span>
-      </div>`;
-    }
-    leaks+='</div>';
-    html+=leaks;
-  }
 
   body.innerHTML=html;
 }
