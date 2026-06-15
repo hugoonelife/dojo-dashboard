@@ -1960,8 +1960,10 @@ function renderMetrics(){
 // MOVIMIENTOS (INGRESOS / GASTOS)
 // ═══════════════════════════
 function entryIsExpense(e){return e.type==='expense';}
-function calcIncomeTotal(){return(state.revenueLog||[]).filter(e=>!entryIsExpense(e)).reduce((s,e)=>s+(e.amount||0),0);}
-function calcExpenseTotal(){return(state.revenueLog||[]).filter(entryIsExpense).reduce((s,e)=>s+(e.amount||0),0);}
+// Todos los movimientos: los manuales (state.revenueLog) + los automáticos de Mercury
+function allMovements(){return [...(state.revenueLog||[]), ...(typeof mercuryEntries==='function'?mercuryEntries():[])];}
+function calcIncomeTotal(){return allMovements().filter(e=>!entryIsExpense(e)).reduce((s,e)=>s+(e.amount||0),0);}
+function calcExpenseTotal(){return allMovements().filter(entryIsExpense).reduce((s,e)=>s+(e.amount||0),0);}
 function calcRevTotal(){return calcIncomeTotal();} // compat
 let revDraftType='income';
 function selectRevType(t){
@@ -2086,39 +2088,53 @@ function importMovements(inp){
 let revLogExpanded=false;
 function buildRevRow(e){
   const isExp=entryIsExpense(e);
+  const isMercury=e.source==='mercury';
   const row=document.createElement('div');
-  row.style.cssText='display:flex;align-items:center;gap:0;padding:8px 0;border-bottom:1px solid var(--border);cursor:pointer';
+  row.style.cssText='display:flex;align-items:center;gap:0;padding:8px 0;border-bottom:1px solid var(--border);cursor:'+(isMercury?'default':'pointer');
   const date=document.createElement('span');date.style.cssText='color:var(--muted);font-size:11px;min-width:78px';date.textContent=e.date;
   const note=document.createElement('span');note.style.cssText='flex:1;padding:0 12px;color:var(--text);font-size:13px';
   note.textContent=e.note||(isExp?(e.category||'Gasto'):'Ingreso');
-  if(isExp&&e.category){
+  // Etiqueta de categoría (o "Mercury" para los automáticos)
+  const tagText=isMercury?'🏦 Mercury':(isExp&&e.category?e.category:null);
+  if(tagText){
     const tag=document.createElement('span');
-    tag.style.cssText='font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);background:var(--s3);border-radius:20px;padding:1px 8px;margin-right:8px;flex-shrink:0';
-    tag.textContent=e.category;
+    const tagBg=isMercury?'rgba(120,140,255,.15)':'var(--s3)';
+    const tagCol=isMercury?'#8aa0ff':'var(--muted)';
+    tag.style.cssText='font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:'+tagCol+';background:'+tagBg+';border-radius:20px;padding:1px 8px;margin-right:8px;flex-shrink:0';
+    tag.textContent=tagText;
     note.prepend(tag);
   }
   const amt=document.createElement('span');
   amt.style.cssText='font-weight:700;font-size:13px;min-width:80px;text-align:right;color:'+(isExp?'#e85d3a':'var(--ok)');
   amt.textContent=(isExp?'−€':'+€')+fmt(e.amount);
   if(e.currency==='USD'&&e.origAmount){amt.title='Original: $'+e.origAmount;amt.textContent+=' *';}
-  const del=document.createElement('button');
-  del.style.cssText='margin-left:10px;background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:2px 4px';
-  del.textContent='✕';del.title='Eliminar';
-  del.addEventListener('click',ev=>{
-    ev.stopPropagation();
-    if(!confirm('¿Eliminar este movimiento?'))return;
-    state.revenueLog=(state.revenueLog||[]).filter(x=>x.id!==e.id);
-    state.metrics.revenue=calcIncomeTotal();
-    persist();render();
-  });
-  row.addEventListener('click',()=>openAddRevenue(e.id));
-  row.appendChild(date);row.appendChild(note);row.appendChild(amt);row.appendChild(del);
+  row.appendChild(date);row.appendChild(note);row.appendChild(amt);
+  if(isMercury){
+    // Movimiento automático: solo lectura (se gestiona desde Mercury, no se edita ni borra aquí)
+    const lock=document.createElement('span');
+    lock.style.cssText='margin-left:10px;color:var(--dim);font-size:11px;padding:2px 4px';
+    lock.textContent='auto';lock.title='Importado de Mercury — se actualiza solo';
+    row.appendChild(lock);
+  }else{
+    const del=document.createElement('button');
+    del.style.cssText='margin-left:10px;background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:2px 4px';
+    del.textContent='✕';del.title='Eliminar';
+    del.addEventListener('click',ev=>{
+      ev.stopPropagation();
+      if(!confirm('¿Eliminar este movimiento?'))return;
+      state.revenueLog=(state.revenueLog||[]).filter(x=>x.id!==e.id);
+      state.metrics.revenue=calcIncomeTotal();
+      persist();render();
+    });
+    row.addEventListener('click',()=>openAddRevenue(e.id));
+    row.appendChild(del);
+  }
   return row;
 }
 function renderRevLog(){
   const wrap=gid('rev-log-rows');if(!wrap)return;
   wrap.innerHTML='';
-  const log=state.revenueLog||[];
+  const log=allMovements();
   if(!log.length){
     const empty=document.createElement('div');
     empty.style.cssText='font-size:12px;color:var(--dim);padding:10px 0;text-align:center';
@@ -2673,6 +2689,36 @@ async function fetchCrmEvents(){
     crmEvents=data||[]; crmReady=true; renderFunnel();
   }catch(e){console.error(e);}
 }
+// ── Mercury: transacciones bancarias automáticas ──
+// Se guardan aparte (NO en app_state) para no duplicar en el cloud.
+let mercuryTx=[], mercuryReady=false;
+async function fetchMercuryTx(){
+  if(!sb) return;
+  try{
+    const {data,error}=await sb.from('mercury_tx')
+      .select('id,amount,status,counterparty,note,kind,posted_at,created_at')
+      .order('created_at',{ascending:false}).limit(5000);
+    if(error){console.error('mercury fetch',error);return;}
+    mercuryTx=data||[]; mercuryReady=true;
+    renderRevLog(); renderContabilidad();
+  }catch(e){console.error(e);}
+}
+// Convierte una fila de Mercury al formato de entrada del registro (income/expense)
+function mercuryToEntry(t){
+  const amt=parseFloat(t.amount)||0;
+  const isExp=amt<0;                       // negativo = gasto en Mercury
+  const dateISO=(t.posted_at||t.created_at||'').slice(0,10);
+  return {
+    id:'mrc-'+t.id, type:isExp?'expense':'income',
+    amount:Math.abs(amt), currency:'EUR',  // Mercury reporta en la divisa de la cuenta; lo tratamos como EUR ya convertido
+    note:(t.counterparty||t.note||t.kind||'Mercury'),
+    category:isExp?'Mercury':undefined,
+    dateISO, date:isoToDisplay(dateISO), ts:new Date(t.created_at||dateISO).getTime(),
+    source:'mercury'                       // marca para distinguir de los manuales
+  };
+}
+// Todas las transacciones de Mercury como entradas
+function mercuryEntries(){return (mercuryTx||[]).map(mercuryToEntry);}
 // Fuente por contacto: se "recuerda" desde la stage de entrada (VSL Registro / Lead Instagram)
 function crmContactSource(){
   const m={};
@@ -3645,6 +3691,7 @@ async function onAuthed(session){
   hideGate();
   syncStatus('☁ guardado');
   fetchCrmEvents(); // carga eventos del CRM para el funnel automático
+  fetchMercuryTx(); // carga movimientos bancarios de Mercury
 }
 async function saveRemoteNow(){
   if(!sb||!sbUser) return;
