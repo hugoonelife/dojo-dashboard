@@ -424,7 +424,7 @@ tr:last-child td{border-bottom:none}
 .ep-vis-toggle-btn.con-style:hover{background:rgba(0,200,212,.08);color:rgba(0,200,212,.8)}
 .ep-vision-rect{display:none;margin:0 20px 14px;background:rgba(0,0,0,.65);border:1px solid rgba(255,255,255,.08);border-radius:10px;overflow:hidden}
 .ep-vis-chk:checked~.ep-vision-rect{display:block}
-.ep-vis-chk:checked+.ep-vis-toggle-btn .ep-vis-icon::after{content:'▴'}
+.ep-vis-chk:checked~div .ep-vis-toggle-btn .ep-vis-icon::after{content:'▴'}
 .ep-vis-icon::after{content:'▾'}
 .ep-vision-rect textarea{width:100%;background:transparent;border:none;padding:14px 16px;color:rgba(255,255,255,.75);font-size:13px;font-family:inherit;resize:vertical;outline:none;min-height:90px;line-height:1.6}
 .ep-vision-rect textarea::placeholder{color:rgba(255,255,255,.2)}
@@ -496,9 +496,9 @@ tr:last-child td{border-bottom:none}
         <div class="ep-panel-logo" style="color:var(--text)"><span style="color:var(--biz)">⛩</span> EL DOJO</div>
         <div class="ep-panel-tag">Estrella Polar · Visión</div>
       </div>
-      <!-- Vision toggle — pure CSS checkbox -->
+      <!-- Vision toggle — pure CSS checkbox (input y rect deben ser hermanos para que ~ funcione) -->
+      <input type="checkbox" class="ep-vis-chk" id="chk-dojo">
       <div style="padding:8px 20px 0">
-        <input type="checkbox" class="ep-vis-chk" id="chk-dojo">
         <label class="ep-vis-toggle-btn" for="chk-dojo"><span class="ep-vis-icon"></span> Visión El Dojo</label>
       </div>
       <div class="ep-vision-rect">
@@ -534,9 +534,9 @@ tr:last-child td{border-bottom:none}
         <div class="ep-panel-logo" style="color:var(--con)">◈ HUGOONELIFE</div>
         <div class="ep-panel-tag">Estrella Polar · Contenido</div>
       </div>
-      <!-- Vision toggle Hugo — pure CSS checkbox -->
+      <!-- Vision toggle Hugo — pure CSS checkbox (input y rect hermanos) -->
+      <input type="checkbox" class="ep-vis-chk" id="chk-hugo">
       <div style="padding:8px 20px 0">
-        <input type="checkbox" class="ep-vis-chk" id="chk-hugo">
         <label class="ep-vis-toggle-btn con-style" for="chk-hugo"><span class="ep-vis-icon"></span> Visión HugoOneLife</label>
       </div>
       <div class="ep-vision-rect">
