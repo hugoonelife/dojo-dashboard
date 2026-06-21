@@ -697,6 +697,17 @@ tr:last-child td{border-bottom:none}
     <div id="funnel-body"></div>
   </div>
 
+  <!-- IA de metas del setter -->
+  <div class="kpi-section" style="margin-bottom:18px">
+    <div class="kpi-hd"><h3>🎯 IA · Metas semanales del setter</h3></div>
+    <p style="font-size:12px;color:var(--muted);margin:0 0 12px">Pregúntale qué objetivos darle al setter y cuál es tu mayor cuello de botella, teniendo en cuenta tu funnel y tus caps.</p>
+    <div id="setter-chat-log" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="setter-chat-input" placeholder="ej. ¿Cuántas conversaciones debe abrir el setter esta semana para cerrar 5 ventas? ¿Cuál es mi mayor constraint?" style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px" onkeydown="if(event.key==='Enter')askSetterAI()">
+      <button class="btn btn-p" style="padding:10px 18px" onclick="askSetterAI()" id="setter-send-btn">Enviar</button>
+    </div>
+  </div>
+
   <!-- Sales call tracking -->
   <div class="kpi-section" style="margin-bottom:18px">
     <div class="kpi-hd">
@@ -2862,6 +2873,7 @@ const FUNNEL_STAGES=[
   {key:'leadYt',      label:'YouTube',        desc:'entró por YouTube',   source:true, match:'lead youtube'},
   {key:'leadStories', label:'Stories',        desc:'entró por Stories',   source:true, match:'lead stories'},
   {key:'leadCaliente',label:'Respondió',      desc:'abrió conversación',  conv:'% respuesta', bench:60, leak:{key:'noCualif',label:'no cualificado',base:'self'}},
+  {key:'cualificado', label:'Cualificado',    desc:'respondió − no cualif', conv:'% cualifica', bench:70, derived:'respMinusNoCualif'},
   {key:'vslEnviada',  label:'VSL mandada',    desc:'',                    conv:'% envío VSL', bench:70},
   {key:'agendada',    label:'Agendada',       desc:'reservó llamada',     conv:'% agenda',    bench:30, leak:{key:'noShow',label:'no se presentó',base:'self'}},
   {key:'realizada',   label:'Tuvo llamada',   desc:'apareció',            conv:'show rate',   bench:75},
@@ -3484,6 +3496,45 @@ function aiAppend(role,text){
   log.appendChild(d);log.scrollTop=log.scrollHeight;
   return d;
 }
+// ── IA de metas del setter (mismo webhook, contexto de ventas) ──
+function setterAppend(role,text){
+  const log=gid('setter-chat-log');if(!log)return;
+  const isUser=role==='user';
+  const d=document.createElement('div');
+  d.style.cssText='max-width:85%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5;white-space:pre-wrap;'
+    +(isUser?'align-self:flex-end;background:var(--gold);color:#1a1205':'align-self:flex-start;background:var(--s2);border:1px solid var(--border);color:var(--text)');
+  d.textContent=text;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;
+  return d;
+}
+async function askSetterAI(){
+  const inp=gid('setter-chat-input');const q=(inp.value||'').trim();
+  if(!q)return;
+  inp.value='';
+  setterAppend('user',q);
+  if(!AI_WEBHOOK_URL){setterAppend('ai','⚠️ El chat aún no está conectado (falta AI_WEBHOOK_URL).');return;}
+  const btn=gid('setter-send-btn');btn.disabled=true;btn.textContent='…';
+  const thinking=setterAppend('ai','Pensando…');
+  try{
+    // Contexto de ventas: funnel global acumulado + caps + cierre real
+    const wk=computeGlobalFunnel();
+    wk.cualificado=Math.max(0,(wk.leadCaliente||0)-(wk.noCualif||0));
+    const funnel={
+      leadInstagram:wk.leadIg||0, leadVsl:wk.leadVsl||0, leadYoutube:wk.leadYt||0, leadStories:wk.leadStories||0,
+      totalLeads:funnelSources(wk),
+      respondio:wk.leadCaliente||0, noCualificado:wk.noCualif||0, cualificado:wk.cualificado,
+      vslMandada:wk.vslEnviada||0, agendada:wk.agendada||0, noSePresento:wk.noShow||0,
+      tuvoLlamada:wk.realizada||0, miembroPerma:wk.perma||0
+    };
+    const cap=state.cap||{};
+    const cierreRate=funnel.agendada>0?((funnel.miembroPerma/funnel.agendada)*100).toFixed(0)+'%':'—';
+    const res=await fetch(AI_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({mode:'setter',question:q,funnel,cap:{maxHsemana:cap.maxH,clientesPorGrupo:cap.perGroup},cierreRate})});
+    const data=await res.json();
+    thinking.textContent=data.answer||data.output||data.text||'(sin respuesta)';
+  }catch(e){thinking.textContent='⚠️ Error al contactar la IA: '+e.message;}
+  btn.disabled=false;btn.textContent='Enviar';
+}
 async function askAI(){
   const inp=gid('ai-chat-input');const q=(inp.value||'').trim();
   if(!q)return;
@@ -3533,6 +3584,8 @@ function renderFunnel(){
   let wk, isAuto=false, isGlobal=false;
   if(funnelWeekISO==='all'){ wk=computeGlobalFunnel(); isGlobal=true; }
   else { const r=getFunnelWeek(funnelWeekISO); wk=r.wk; isAuto=r.isAuto; }
+  // Paso derivado: cualificados = respondió − no cualificados (mínimo 0)
+  if(wk) wk.cualificado=Math.max(0,(wk.leadCaliente||0)-(wk.noCualif||0));
 
   const empty = !wk || (isGlobal && funnelSources(wk)===0 && (wk.leadCaliente||0)===0);
   if(empty){
