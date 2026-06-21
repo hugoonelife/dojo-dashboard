@@ -1075,7 +1075,23 @@ tr:last-child td{border-bottom:none}
           <select id="tool-currency" style="width:60px;flex-shrink:0"><option value="EUR">€</option><option value="USD">$</option></select>
         </div>
       </div>
+      <div class="field"><label>Frecuencia</label>
+        <select id="tool-freq" onchange="toolFreqChanged()" style="width:100%">
+          <option value="mensual">Mensual</option>
+          <option value="anual">Anual</option>
+        </select>
+      </div>
+    </div>
+    <div class="two-col">
       <div class="field"><label>Día de cobro (1-31)</label><input type="number" id="tool-day" placeholder="1" min="1" max="31"></div>
+      <div class="field" id="tool-month-field" style="display:none"><label>Mes de cobro</label>
+        <select id="tool-month" style="width:100%">
+          <option value="1">Enero</option><option value="2">Febrero</option><option value="3">Marzo</option>
+          <option value="4">Abril</option><option value="5">Mayo</option><option value="6">Junio</option>
+          <option value="7">Julio</option><option value="8">Agosto</option><option value="9">Septiembre</option>
+          <option value="10">Octubre</option><option value="11">Noviembre</option><option value="12">Diciembre</option>
+        </select>
+      </div>
     </div>
     <div class="modal-foot">
       <button class="btn-del" id="tool-del-btn" style="display:none" onclick="deleteToolFromModal()">Eliminar</button>
@@ -2215,19 +2231,37 @@ function toggleRevLog(){
 // ═══════════════════════════
 // HERRAMIENTAS (suscripciones)
 // ═══════════════════════════
-function toolMonthlyEur(t){return t.currency==='USD'?(t.amount||0)*getUsdEur():(t.amount||0);}
+// Importe en EUR de una herramienta. Las ANUALES solo "pesan" en su mes de cobro; el resto del año cuentan 0.
+function toolMonthlyEur(t){
+  const eur=t.currency==='USD'?(t.amount||0)*getUsdEur():(t.amount||0);
+  if(t.freq==='anual'){
+    const thisMonth=new Date().getMonth()+1; // 1-12
+    return (t.month&&t.month===thisMonth)?eur:0; // solo en su mes
+  }
+  return eur; // mensual
+}
 function toolsTotal(){return(state.tools||[]).reduce((s,t)=>s+toolMonthlyEur(t),0);}
 // Clave del mes actual (AAAA-MM)
 function currentMonthKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
-// "Pagado" se decide SOLO por la fecha: si ya pasó (o es) el día de cobro de este mes → cobrado.
-// Si la herramienta no tiene día de cobro, cae a marcado manual de este mes (compat).
+// "Pagado" por fecha. Anual: solo aplica en su mes (fuera de su mes no es "pendiente", es que no toca).
 function toolIsPaid(t){
+  if(t.freq==='anual'){
+    const thisMonth=new Date().getMonth()+1;
+    if(t.month!==thisMonth) return true; // no es su mes → nada que pagar, lo tratamos como "ok"
+    return t.day ? (new Date().getDate()>=t.day) : (t.paidMonth===currentMonthKey());
+  }
   if(t.day){ return new Date().getDate() >= t.day; }
   return t.paidMonth===currentMonthKey();
+}
+// Muestra/oculta el selector de mes según la frecuencia
+function toolFreqChanged(){
+  const anual=gid('tool-freq').value==='anual';
+  gid('tool-month-field').style.display=anual?'':'none';
 }
 function openToolModal(id){
   gid('tool-id').value='';gid('tool-name').value='';gid('tool-info').value='';
   gid('tool-amount').value='';gid('tool-currency').value='EUR';gid('tool-day').value='';
+  gid('tool-freq').value='mensual';gid('tool-month').value=String(new Date().getMonth()+1);
   gid('tool-del-btn').style.display='none';
   gid('tool-modal-title').textContent='Nueva herramienta';
   if(id){
@@ -2235,10 +2269,13 @@ function openToolModal(id){
     if(t){
       gid('tool-id').value=t.id;gid('tool-name').value=t.name||'';gid('tool-info').value=t.info||'';
       gid('tool-amount').value=t.amount||'';gid('tool-currency').value=t.currency||'EUR';gid('tool-day').value=t.day||'';
+      gid('tool-freq').value=t.freq||'mensual';
+      if(t.month)gid('tool-month').value=String(t.month);
       gid('tool-del-btn').style.display='inline';
       gid('tool-modal-title').textContent='Editar herramienta';
     }
   }
+  toolFreqChanged(); // ajusta visibilidad del mes
   gid('modal-tool').classList.add('on');
 }
 function closeToolModal(){gid('modal-tool').classList.remove('on');}
@@ -2246,11 +2283,14 @@ function saveTool(){
   const name=gid('tool-name').value.trim();
   if(!name){alert('Pon el nombre.');return;}
   if(!state.tools)state.tools=[];
+  const freq=gid('tool-freq').value;
   const data={
     name,info:gid('tool-info').value.trim(),
     amount:parseFloat(gid('tool-amount').value)||0,
     currency:gid('tool-currency').value,
-    day:parseInt(gid('tool-day').value)||null
+    day:parseInt(gid('tool-day').value)||null,
+    freq,
+    month:freq==='anual'?(parseInt(gid('tool-month').value)||null):null
   };
   const id=gid('tool-id').value;
   if(id){const t=state.tools.find(x=>x.id===id);if(t)Object.assign(t,data);}
@@ -2274,19 +2314,33 @@ function renderTools(){
   }else{
     tools.forEach(t=>{
       const tr=document.createElement('tr');tr.style.cursor='pointer';
-      const eur=toolMonthlyEur(t);
+      const isAnual=t.freq==='anual';
+      const thisMonth=new Date().getMonth()+1;
+      const isAnualMonth=isAnual&&t.month===thisMonth;
+      // Importe que se muestra: anual = importe real (no el 0 de los meses que no toca)
+      const baseEur=t.currency==='USD'?(t.amount||0)*getUsdEur():(t.amount||0);
       const usdTag=t.currency==='USD'?` <span style="font-size:9px;color:var(--dim)">($${t.amount})</span>`:'';
+      const MES=['','Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+      const freqTag=isAnual
+        ? ` <span style="font-size:9px;color:#8aa0ff;background:rgba(120,140,255,.12);border-radius:20px;padding:1px 7px">anual · ${MES[t.month]||'?'}</span>`
+        : '';
       const paid=toolIsPaid(t);
-      const auto=!!t.day; // si tiene día de cobro, el estado es automático por fecha
-      const chipTitle=auto
-        ? (paid?'Ya pasó el día '+t.day+' → cobrado este mes':'Aún no llega el día '+t.day+' → pendiente')
-        : 'Sin día de cobro — clic para alternar manualmente';
-      const chip=`<span class="pay-chip ${paid?'paid':'due'}${auto?'':' clickable'}" style="${auto?'cursor:default':''}" title="${chipTitle}">${paid?'✓ pagado':'● por pagar'}</span>`;
+      // El chip de pago solo tiene sentido si "toca" este mes (mensual siempre; anual solo su mes)
+      const showChip=!isAnual||isAnualMonth;
+      const auto=!!t.day;
+      let chip='';
+      if(showChip){
+        const chipTitle=auto?(paid?'Ya pasó el día '+t.day:'Aún no llega el día '+t.day):'Clic para alternar';
+        chip=`<span class="pay-chip ${paid?'paid':'due'}${auto?'':' clickable'}" style="${auto?'cursor:default':''}" title="${chipTitle}">${paid?'✓ pagado':'● por pagar'}</span>`;
+      } else {
+        chip=`<span style="font-size:9px;color:var(--dim)">— no este mes</span>`;
+      }
+      const dayLbl=t.day?(isAnual?(t.day+' '+(MES[t.month]||'')):('día '+t.day)):'—';
       tr.innerHTML=`
-        <td style="font-weight:600">${esc(t.name)}</td>
+        <td style="font-weight:600">${esc(t.name)}${freqTag}</td>
         <td style="color:var(--muted)">${esc(t.info)||'—'}</td>
-        <td style="color:#e85d3a;font-weight:700">€${fmt(eur.toFixed(2))}${usdTag}</td>
-        <td>${t.day?('día '+t.day):'—'} ${chip}</td>
+        <td style="color:#e85d3a;font-weight:700">€${fmt(baseEur.toFixed(2))}${isAnual?'<span style="font-size:9px;color:var(--dim)">/año</span>':''}${usdTag}</td>
+        <td>${dayLbl} ${chip}</td>
         <td></td>`;
       // Solo las herramientas SIN día de cobro permiten alternar a mano
       if(!auto){
