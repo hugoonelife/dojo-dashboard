@@ -471,6 +471,7 @@ tr:last-child td{border-bottom:none}
   <div class="tabs">
     <button class="tab on" onclick="switchTab('dashboard')">Dashboard</button>
     <button class="tab" onclick="switchTab('metricas')">Métricas</button>
+    <button class="tab" onclick="switchTab('contenido')">Contenido</button>
     <button class="tab" onclick="switchTab('contabilidad')">Contabilidad</button>
     <button class="tab" onclick="switchTab('plan')">El Plan</button>
     <button class="tab" onclick="switchTab('graficas')">Gráficas</button>
@@ -794,6 +795,44 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
+<!-- ═══ CONTENIDO ═══ -->
+<div class="panel" id="tab-contenido">
+  <div class="met-hd">
+    <h2>Contenido · Top performers</h2>
+    <button class="btn btn-p" style="font-size:11px;padding:5px 12px" onclick="openReelModal()">+ Añadir reel</button>
+  </div>
+
+  <!-- Chat IA -->
+  <div class="kpi-section" style="margin-bottom:18px">
+    <div class="kpi-hd"><h3>🤖 Pregúntale a la IA sobre tu contenido</h3></div>
+    <div id="ai-chat-log" style="max-height:280px;overflow-y:auto;display:flex;flex-direction:column;gap:10px;margin-bottom:12px"></div>
+    <div style="display:flex;gap:8px">
+      <input type="text" id="ai-chat-input" placeholder="ej. ¿Qué hook me funciona mejor? ¿Qué formato convierte más?" style="flex:1;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:inherit;font-size:13px" onkeydown="if(event.key==='Enter')askAI()">
+      <button class="btn btn-p" style="padding:10px 18px" onclick="askAI()" id="ai-send-btn">Enviar</button>
+    </div>
+  </div>
+
+  <!-- Tabla de reels -->
+  <div class="kpi-section">
+    <div class="kpi-hd">
+      <h3>Reels publicados</h3>
+      <span style="font-size:11px;color:var(--dim)">Clic en ▼ Views o ▼ V:F para ordenar por top performers</span>
+    </div>
+    <div class="calls-table-wrap" style="overflow-x:auto">
+      <table class="calls-table" id="reels-table">
+        <thead><tr>
+          <th>Post</th><th>Fecha</th><th>Canal</th><th>Dolor</th><th>Hook</th><th>Formato</th>
+          <th class="reel-sort" onclick="sortReels('views')" style="cursor:pointer">Views ▼</th>
+          <th class="reel-sort" onclick="sortReels('followers')" style="cursor:pointer">Followers</th>
+          <th class="reel-sort" onclick="sortReels('vf')" style="cursor:pointer">V:F</th>
+          <th>Leads</th><th>Info</th><th></th>
+        </tr></thead>
+        <tbody id="reels-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- ═══ CONTABILIDAD ═══ -->
 <div class="panel" id="tab-contabilidad">
   <div class="met-hd">
@@ -1098,6 +1137,35 @@ tr:last-child td{border-bottom:none}
       <div class="mfr">
         <button class="btn btn-s" onclick="closeToolModal()">Cancelar</button>
         <button class="btn btn-p" onclick="saveTool()">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════ MODAL REEL ════ -->
+<div class="overlay" id="modal-reel">
+  <div class="modal" style="width:480px">
+    <h3 id="reel-modal-title">Nuevo reel</h3>
+    <input type="hidden" id="reel-id">
+    <div class="field"><label>Post (nombre)</label><input type="text" id="reel-post" placeholder="ej. SERIE GUILLE"></div>
+    <div class="two-col">
+      <div class="field"><label>Fecha</label><input type="date" id="reel-date"></div>
+      <div class="field"><label>Canal</label><input type="text" id="reel-canal" placeholder="ej. HOL"></div>
+    </div>
+    <div class="field"><label>Dolor</label><input type="text" id="reel-dolor" placeholder="ej. Hero / Métodos para manifestar"></div>
+    <div class="field"><label>Hook</label><input type="text" id="reel-hook" placeholder="ej. Snapchat + niño rata"></div>
+    <div class="field"><label>Formato</label><input type="text" id="reel-formato" placeholder="ej. Serie / MOVIE + HABLAR"></div>
+    <div class="two-col">
+      <div class="field"><label>Views</label><input type="number" id="reel-views" placeholder="0" min="0"></div>
+      <div class="field"><label>Followers ganados</label><input type="number" id="reel-followers" placeholder="0" min="0"></div>
+    </div>
+    <div class="field"><label>Leads</label><input type="number" id="reel-leads" placeholder="0" min="0"></div>
+    <div class="field"><label>Info / notas</label><textarea id="reel-info" rows="3" placeholder="observaciones sobre el reel..." style="width:100%;background:var(--s2);border:1px solid var(--border);border-radius:8px;padding:8px;color:var(--text);font-family:inherit;resize:vertical"></textarea></div>
+    <div class="modal-foot">
+      <button class="btn-del" id="reel-del-btn" style="display:none" onclick="deleteReelFromModal()">Eliminar</button>
+      <div class="mfr">
+        <button class="btn btn-s" onclick="closeReelModal()">Cancelar</button>
+        <button class="btn btn-p" onclick="saveReel()">Guardar</button>
       </div>
     </div>
   </div>
@@ -1442,12 +1510,13 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 function gid(id){return document.getElementById(id)}
 function txt(id,v){const e=gid(id);if(e)e.textContent=v}
 function switchTab(n){
-  const tabs=['dashboard','metricas','contabilidad','plan','graficas','equipo'];
+  const tabs=['dashboard','metricas','contenido','contabilidad','plan','graficas','equipo'];
   document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('on',tabs[i]===n));
   document.querySelectorAll('.panel').forEach(p=>p.classList.remove('on'));
   gid('tab-'+n).classList.add('on');
   if(n==='graficas')setTimeout(renderGraficas,50);
   if(n==='equipo')renderTeam();
+  if(n==='contenido')renderReels();
 }
 
 // ═══════════════════════════
@@ -3261,6 +3330,121 @@ function renderMonthKpi(){
       <span style="color:#e85d3a;font-size:12px;font-weight:700">🗑 Borrar este mes</span></div>`;
 }
 
+// ═══════════════════════════
+// CONTENIDO · REELS
+// ═══════════════════════════
+let reelSort='views'; // criterio de orden actual
+function reelVF(r){return (r.followers>0)?(r.views/r.followers):0;} // views por follower
+function sortReels(k){reelSort=k;renderReels();}
+function renderReels(){
+  const tb=gid('reels-tbody');if(!tb)return;
+  let reels=[...(state.reels||[])];
+  // Orden por top performers
+  reels.sort((a,b)=>{
+    if(reelSort==='vf')return reelVF(b)-reelVF(a);
+    if(reelSort==='followers')return (b.followers||0)-(a.followers||0);
+    return (b.views||0)-(a.views||0); // views por defecto
+  });
+  if(!reels.length){tb.innerHTML='<tr><td colspan="12" class="calls-empty">Sin reels — añade el primero</td></tr>';return;}
+  tb.innerHTML='';
+  reels.forEach(r=>{
+    const tr=document.createElement('tr');tr.style.cursor='pointer';
+    const vf=reelVF(r);
+    tr.innerHTML=`
+      <td style="font-weight:600;min-width:120px">${esc(r.post)}</td>
+      <td style="color:var(--muted);font-size:11px">${r.date?esc(isoToDisplay(r.date)):'—'}</td>
+      <td><span style="font-size:10px;background:var(--s3);border-radius:5px;padding:2px 7px">${esc(r.canal||'')}</span></td>
+      <td style="color:var(--muted);font-size:12px;min-width:130px">${esc(r.dolor||'')}</td>
+      <td style="font-size:12px;min-width:150px">${esc(r.hook||'')}</td>
+      <td style="color:var(--muted);font-size:11px">${esc(r.formato||'')}</td>
+      <td style="font-weight:700">${fmt(r.views||0)}</td>
+      <td>${fmt(r.followers||0)}</td>
+      <td style="color:var(--con);font-weight:700">${vf?vf.toFixed(0):'—'}</td>
+      <td>${r.leads!=null?fmt(r.leads):'—'}</td>
+      <td style="color:var(--dim);font-size:11px;min-width:140px;max-width:200px">${esc(r.info||'')}</td>
+      <td></td>`;
+    tr.addEventListener('click',e=>{if(e.target.closest('.reel-del'))return;openReelModal(r.id);});
+    const del=document.createElement('button');del.className='reel-del call-del';del.textContent='✕';del.title='Eliminar';
+    del.addEventListener('click',e=>{e.stopPropagation();if(!confirm('¿Eliminar este reel?'))return;state.reels=(state.reels||[]).filter(x=>x.id!==r.id);persist();renderReels();});
+    tr.lastElementChild.appendChild(del);
+    tb.appendChild(tr);
+  });
+}
+function openReelModal(id){
+  ['post','canal','dolor','hook','formato','info'].forEach(k=>gid('reel-'+k).value='');
+  ['views','followers','leads'].forEach(k=>gid('reel-'+k).value='');
+  gid('reel-date').value='';gid('reel-id').value='';
+  gid('reel-del-btn').style.display='none';
+  gid('reel-modal-title').textContent='Nuevo reel';
+  if(id){
+    const r=(state.reels||[]).find(x=>x.id===id);
+    if(r){
+      gid('reel-id').value=r.id;
+      gid('reel-post').value=r.post||'';gid('reel-date').value=r.date||'';gid('reel-canal').value=r.canal||'';
+      gid('reel-dolor').value=r.dolor||'';gid('reel-hook').value=r.hook||'';gid('reel-formato').value=r.formato||'';
+      gid('reel-views').value=r.views||'';gid('reel-followers').value=r.followers||'';
+      gid('reel-leads').value=r.leads!=null?r.leads:'';gid('reel-info').value=r.info||'';
+      gid('reel-del-btn').style.display='inline';gid('reel-modal-title').textContent='Editar reel';
+    }
+  }
+  gid('modal-reel').classList.add('on');
+}
+function closeReelModal(){gid('modal-reel').classList.remove('on');}
+function saveReel(){
+  const post=gid('reel-post').value.trim();
+  if(!post){alert('Pon el nombre del post.');return;}
+  if(!state.reels)state.reels=[];
+  const num=id=>{const v=parseFloat(gid('reel-'+id).value);return isNaN(v)?null:v;};
+  const data={
+    post,date:gid('reel-date').value||'',canal:gid('reel-canal').value.trim(),
+    dolor:gid('reel-dolor').value.trim(),hook:gid('reel-hook').value.trim(),formato:gid('reel-formato').value.trim(),
+    views:num('views')||0,followers:num('followers')||0,leads:num('leads'),info:gid('reel-info').value.trim()
+  };
+  const id=gid('reel-id').value;
+  if(id){const r=state.reels.find(x=>x.id===id);if(r)Object.assign(r,data);}
+  else state.reels.push({id:'reel-'+Date.now(),...data});
+  persist();renderReels();closeReelModal();
+}
+function deleteReelFromModal(){
+  const id=gid('reel-id').value;
+  if(id&&confirm('¿Eliminar este reel?')){state.reels=(state.reels||[]).filter(x=>x.id!==id);persist();renderReels();}
+  closeReelModal();
+}
+// ── Chat IA sobre el contenido (vía n8n → Claude API) ──
+const AI_WEBHOOK_URL=''; // ⚠️ pega aquí la URL del webhook de n8n cuando lo montes
+function aiAppend(role,text){
+  const log=gid('ai-chat-log');if(!log)return;
+  const isUser=role==='user';
+  const d=document.createElement('div');
+  d.style.cssText='max-width:85%;padding:9px 13px;border-radius:12px;font-size:13px;line-height:1.5;white-space:pre-wrap;'
+    +(isUser?'align-self:flex-end;background:var(--con);color:#04121a':'align-self:flex-start;background:var(--s2);border:1px solid var(--border);color:var(--text)');
+  d.textContent=text;
+  log.appendChild(d);log.scrollTop=log.scrollHeight;
+  return d;
+}
+async function askAI(){
+  const inp=gid('ai-chat-input');const q=(inp.value||'').trim();
+  if(!q)return;
+  inp.value='';
+  aiAppend('user',q);
+  if(!AI_WEBHOOK_URL){
+    aiAppend('ai','⚠️ El chat aún no está conectado. Falta pegar la URL del webhook de n8n en el código (AI_WEBHOOK_URL).');
+    return;
+  }
+  const btn=gid('ai-send-btn');btn.disabled=true;btn.textContent='…';
+  const thinking=aiAppend('ai','Pensando…');
+  try{
+    // Mandamos la pregunta + un resumen compacto de los reels para que la IA tenga contexto
+    const reelsCtx=(state.reels||[]).map(r=>({post:r.post,canal:r.canal,dolor:r.dolor,hook:r.hook,formato:r.formato,views:r.views,followers:r.followers,vf:Math.round(reelVF(r)),leads:r.leads,info:r.info}));
+    const res=await fetch(AI_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,reels:reelsCtx})});
+    const data=await res.json();
+    thinking.textContent=data.answer||data.output||data.text||'(sin respuesta)';
+  }catch(e){
+    thinking.textContent='⚠️ Error al contactar la IA: '+e.message;
+  }
+  btn.disabled=false;btn.textContent='Enviar';
+}
+
 function renderFunnel(){
   const body=gid('funnel-body');if(!body)return;
   const lblEl=gid('funnel-week-lbl');
@@ -3733,6 +3917,23 @@ if(!state.cap)state.cap={
 };
 // Cap de llamadas de venta (cuándo meter closer)
 if(!state.callCap)state.callCap={min:15,max:18,streak:4};
+// Reels / Contenido — seed con los top performers actuales (una sola vez)
+if(!state.reels){
+  const R=(post,canal,dolor,hook,formato,views,followers,leads,info)=>({id:'reel-'+Math.random().toString(36).slice(2),post,date:'',canal,dolor,hook,formato,views,followers,leads:leads||null,info:info||''});
+  state.reels=[
+    R('SERIE GUILLE','HOL','Hero','Snapchat + niño rata','Serie',8000000,19600,null,'Muy poca conversión. Video de agus: 900k = 7300 follow. Video Parkour: 2.6M = 5400 follow'),
+    R('SERIE CARLOS','HOL','Hero','Snapchat + relacionado con trading','Serie',1500000,10700,null,'Más conversión que mi hermano. Me trajo leads sobre todo la Movie inicial y el high effort afterwards'),
+    R('Leyo piense y hagase rico','HOL','Métodos para manifestar','Snapchat nicho concreto de mindset (flow nero)','MOVIE + HABLAR',470000,5763,null,'aporte valor nicho y la gente me siguió más'),
+    R('Stranger things','HOL','Métodos para manifestar','Snapchat + stranger things (trendind) + curiosidad','Probando',360000,2192,null,''),
+    R('Por fin me siento bien','HOL','El disfrutar/desapego como resultado','Hablando directamente por fin me siento bien con minecraft (cinematico)','MOVIE + HABLAR',100000,641,null,'poca conversión, solo conté experiencia'),
+    R('20k Hipnosis','HOL','La mente se entrena','Inicio de 4 personas + Nicho frases concretas (jose elias, iman, estratega)','MOVIE + HABLAR',55000,557,null,'Bastante nicho, + conversión'),
+    R('PERMA REEL','HOL','Romper ciclo autosaboteo','Yo en hielo + ponerme a mi flaco','Crudo hablando a camara horizontal',26000,161,null,''),
+    R('Croquetitas 4k y se compensa con mal dia','HOL','Polaridad, disciplina vs dopamina','Que hay pa comer (no toca nada de dolores + tarda mucho en generar dinero)','',29000,355,0,''),
+    R('David goggins','HOL','Cambio rápido en resultados','David goggins','MOVIE + HABLAR',88000,598,670,''),
+    R('Minecraft volver al pasado','HOL','Nostalgía, volver al pasado','Iniciar con video IA','MOVIE + HABLAR + UNIVERSO',8000,8,1000,''),
+    R('Que bueno es vendiendo','HOL','Frenarse tras crecer','snapchat (que bueno es vendiendo)','FULL MOVIE',30000,220,null,'')
+  ];
+}
 // KPIs mensuales — seed del mes 15 may–15 jun (una sola vez)
 // Nota: agendadas/cierres son overrides manuales (este mes no estaba en el tracker).
 if(!state.monthlyKpis){
