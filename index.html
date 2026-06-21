@@ -812,6 +812,15 @@ tr:last-child td{border-bottom:none}
     </div>
   </div>
 
+  <!-- Estrategia de vídeos -->
+  <div class="kpi-section" style="margin-bottom:18px">
+    <div class="kpi-hd">
+      <h3>🎯 Estrategia de vídeos</h3>
+      <button class="btn btn-s" style="font-size:11px;padding:4px 10px" onclick="addStrategyItem()">+ Añadir</button>
+    </div>
+    <div id="strategy-list"></div>
+  </div>
+
   <!-- Tabla de reels -->
   <div class="kpi-section">
     <div class="kpi-hd">
@@ -1516,7 +1525,7 @@ function switchTab(n){
   gid('tab-'+n).classList.add('on');
   if(n==='graficas')setTimeout(renderGraficas,50);
   if(n==='equipo')renderTeam();
-  if(n==='contenido')renderReels();
+  if(n==='contenido'){renderReels();renderStrategy();}
 }
 
 // ═══════════════════════════
@@ -3410,6 +3419,46 @@ function deleteReelFromModal(){
   if(id&&confirm('¿Eliminar este reel?')){state.reels=(state.reels||[]).filter(x=>x.id!==id);persist();renderReels();}
   closeReelModal();
 }
+// ── Estrategia de vídeos: checkboxes editables ──
+function renderStrategy(){
+  const wrap=gid('strategy-list');if(!wrap)return;
+  wrap.innerHTML='';
+  const list=state.videoStrategy||[];
+  if(!list.length){
+    wrap.innerHTML='<div style="font-size:12px;color:var(--dim);padding:8px 0">Sin estrategias — dale a "+ Añadir"</div>';
+    return;
+  }
+  list.forEach(s=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)';
+    // checkbox
+    const box=document.createElement('div');
+    box.style.cssText='width:18px;height:18px;border:1.5px solid '+(s.done?'var(--ok)':'var(--muted)')+';border-radius:4px;flex-shrink:0;cursor:pointer;display:flex;align-items:center;justify-content:center;background:'+(s.done?'rgba(80,200,120,.15)':'transparent');
+    box.textContent=s.done?'✓':'';box.style.color='var(--ok)';box.style.fontSize='12px';box.style.fontWeight='800';
+    box.addEventListener('click',()=>{s.done=!s.done;persist();renderStrategy();});
+    // texto editable
+    const txt=document.createElement('input');
+    txt.type='text';txt.value=s.text;
+    txt.style.cssText='flex:1;background:none;border:none;color:'+(s.done?'var(--dim)':'var(--text)')+';font-size:13px;font-family:inherit;outline:none;'+(s.done?'text-decoration:line-through':'');
+    txt.addEventListener('input',()=>{s.text=txt.value;persist();});
+    // borrar
+    const del=document.createElement('button');
+    del.textContent='✕';del.title='Eliminar';
+    del.style.cssText='background:none;border:none;color:var(--dim);cursor:pointer;font-size:13px;padding:2px 4px';
+    del.addEventListener('click',()=>{state.videoStrategy=(state.videoStrategy||[]).filter(x=>x.id!==s.id);persist();renderStrategy();});
+    row.appendChild(box);row.appendChild(txt);row.appendChild(del);
+    wrap.appendChild(row);
+  });
+}
+function addStrategyItem(){
+  if(!state.videoStrategy)state.videoStrategy=[];
+  state.videoStrategy.push({id:'vs-'+Date.now(),text:'',done:false});
+  persist();renderStrategy();
+  // foco en el nuevo input
+  const inputs=document.querySelectorAll('#strategy-list input');
+  if(inputs.length)inputs[inputs.length-1].focus();
+}
+
 // ── Chat IA sobre el contenido (vía n8n → Claude API) ──
 const AI_WEBHOOK_URL='https://n8n-n8n.nrna5j.easypanel.host/webhook/chat-contenido'; // webhook n8n → Claude API
 function aiAppend(role,text){
@@ -3917,6 +3966,15 @@ if(!state.cap)state.cap={
 };
 // Cap de llamadas de venta (cuándo meter closer)
 if(!state.callCap)state.callCap={min:15,max:18,streak:4};
+// Estrategia de vídeos — checkboxes editables (seed una vez)
+if(!state.videoStrategy){
+  state.videoStrategy=[
+    {id:'vs-1',text:'Arte Normal + Valor',done:false},
+    {id:'vs-2',text:'Arte Normal + Valor + CTA a youtube',done:false},
+    {id:'vs-3',text:'Arte Normal + Valor (NEW IDEA)',done:false},
+    {id:'vs-4',text:'Experimento/Videoclip/Movie',done:false}
+  ];
+}
 // Reels / Contenido — seed con los top performers actuales (una sola vez)
 if(!state.reels){
   const R=(post,canal,dolor,hook,formato,views,followers,leads,info)=>({id:'reel-'+Math.random().toString(36).slice(2),post,date:'',canal,dolor,hook,formato,views,followers,leads:leads||null,info:info||''});
