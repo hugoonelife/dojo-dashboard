@@ -840,6 +840,15 @@ tr:last-child td{border-bottom:none}
       </table>
     </div>
   </div>
+
+  <!-- Notas / insights -->
+  <div class="kpi-section">
+    <div class="kpi-hd">
+      <h3>📝 Notas e insights</h3>
+      <span style="font-size:11px;color:var(--dim)">La IA también lee esto</span>
+    </div>
+    <textarea id="content-notes" placeholder="Escribe aquí tus insights sobre el contenido: qué hooks funcionan, qué formatos convierten, ideas, aprendizajes..." oninput="saveContentNotes(this.value)" style="width:100%;min-height:140px;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:14px 16px;color:var(--text);font-family:inherit;font-size:13px;line-height:1.6;resize:vertical;outline:none"></textarea>
+  </div>
 </div>
 
 <!-- ═══ CONTABILIDAD ═══ -->
@@ -1525,7 +1534,7 @@ function switchTab(n){
   gid('tab-'+n).classList.add('on');
   if(n==='graficas')setTimeout(renderGraficas,50);
   if(n==='equipo')renderTeam();
-  if(n==='contenido'){renderReels();renderStrategy();}
+  if(n==='contenido'){renderReels();renderStrategy();loadContentNotes();}
 }
 
 // ═══════════════════════════
@@ -3419,6 +3428,10 @@ function deleteReelFromModal(){
   if(id&&confirm('¿Eliminar este reel?')){state.reels=(state.reels||[]).filter(x=>x.id!==id);persist();renderReels();}
   closeReelModal();
 }
+// ── Notas e insights de contenido ──
+function saveContentNotes(v){state.contentNotes=v;persist();}
+function loadContentNotes(){const el=gid('content-notes');if(el)el.value=state.contentNotes||'';}
+
 // ── Estrategia de vídeos: checkboxes editables ──
 function renderStrategy(){
   const wrap=gid('strategy-list');if(!wrap)return;
@@ -3483,9 +3496,11 @@ async function askAI(){
   const btn=gid('ai-send-btn');btn.disabled=true;btn.textContent='…';
   const thinking=aiAppend('ai','Pensando…');
   try{
-    // Mandamos la pregunta + un resumen compacto de los reels para que la IA tenga contexto
+    // Mandamos la pregunta + reels + estrategia + notas para que la IA tenga todo el contexto
     const reelsCtx=(state.reels||[]).map(r=>({post:r.post,canal:r.canal,dolor:r.dolor,hook:r.hook,formato:r.formato,views:r.views,followers:r.followers,vf:Math.round(reelVF(r)),leads:r.leads,info:r.info}));
-    const res=await fetch(AI_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,reels:reelsCtx})});
+    const estrategia=(state.videoStrategy||[]).map(s=>({tipo:s.text,hecho:s.done}));
+    const notas=state.contentNotes||'';
+    const res=await fetch(AI_WEBHOOK_URL,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q,reels:reelsCtx,estrategia,notas})});
     const data=await res.json();
     thinking.textContent=data.answer||data.output||data.text||'(sin respuesta)';
   }catch(e){
