@@ -11,7 +11,7 @@ jobs:
       - name: Subir por FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ftp.desguaceslaspalmas.site
+          server: europe-1450.banahosting.com
           username: dashboard@dashboard.eldojoapp.com
           password: ${{ secrets.FTP_PASSWORD }}
           server-dir: ./
